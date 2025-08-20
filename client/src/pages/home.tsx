@@ -298,20 +298,20 @@ export default function Home() {
       />
       
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen space-y-12">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen">
         {/* Header Text */}
-        <div className="text-center space-y-2">
-          <p className="text-xs font-mono text-slate-400 uppercase tracking-wider">
+        <div className="text-center space-y-8 mb-16">
+          <p className="text-xs font-mono text-slate-400 uppercase tracking-wider mb-8">
             This site was made by
           </p>
           <h1 className="text-4xl font-mono text-slate-200 font-bold tracking-wide">
             Kaci Bedi
           </h1>
-          <blockquote className="max-w-2xl mx-auto mt-6 text-center">
-            <p className="text-lg font-mono text-slate-300 leading-relaxed">
+          <blockquote className="max-w-2xl mx-auto text-center">
+            <p className="text-base font-mono text-slate-300 leading-relaxed">
               "You are not a drop in the ocean. You are the entire ocean in a drop."
             </p>
-            <cite className="block mt-2 text-sm font-mono text-slate-400">— Rumi</cite>
+            <cite className="block mt-3 text-sm font-mono text-slate-400">— Rumi</cite>
           </blockquote>
         </div>
         
