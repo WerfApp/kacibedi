@@ -270,15 +270,16 @@ export default function Home() {
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Set font for ASCII fluid rendering
-      ctx.font = `${PARTICLE_SIZE}px JetBrains Mono, monospace`;
+      // Set font for ASCII fluid rendering - use fallback fonts
+      ctx.font = `${PARTICLE_SIZE}px Monaco, Consolas, "Courier New", monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Debug: Log particle count
-      if (timeRef.current % 60 === 0) {
-        console.log(`Particles: ${particlesRef.current.length}, First particle:`, 
-          particlesRef.current[0] ? {x: particlesRef.current[0].x, y: particlesRef.current[0].y, char: FLUID_CHARS[particlesRef.current[0].charIndex]} : 'none');
+      // Debug: Check canvas and particle positions
+      console.log(`Canvas: ${canvas.width}x${canvas.height}, Particles: ${particlesRef.current.length}`);
+      if (particlesRef.current.length > 0) {
+        const p = particlesRef.current[0];
+        console.log(`First particle: x=${p.x}, y=${p.y}, char='${FLUID_CHARS[p.charIndex] || 'undefined'}', visible=${p.y < canvas.height && p.y > 0}`);
       }
       
 
@@ -313,7 +314,14 @@ export default function Home() {
         
         // Render the character from the palette
         const char = FLUID_CHARS[Math.max(0, Math.min(particle.charIndex, FLUID_CHARS.length - 1))];
-        ctx.fillText(char, particle.x, particle.y);
+        
+        // Debug: render first few particles with simple characters for testing
+        if (particlesRef.current.indexOf(particle) < 10) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 1.0)'; // Bright white for visibility
+          ctx.fillText('*', particle.x, particle.y); // Simple character
+        } else {
+          ctx.fillText(char, particle.x, particle.y);
+        }
       });
     };
 
