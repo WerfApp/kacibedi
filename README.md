@@ -24,12 +24,19 @@ This site is configured to automatically deploy to GitHub Pages from the `main` 
    - The GitHub Actions workflow will automatically build and deploy your site
    - Your site will be available at `https://yourusername.github.io/repository-name`
 
+### Troubleshooting:
+
+If you see the README instead of your site:
+1. Make sure GitHub Pages source is set to "GitHub Actions" (not "Deploy from branch")
+2. Check the Actions tab for any build errors
+3. Ensure the `.nojekyll` file is present (prevents Jekyll processing)
+
 3. **Build locally (optional):**
    ```bash
    npm install
    npm run build
    ```
-   - The built files will be in the `dist/` directory
+   - The built files will be in the `dist/public/` directory
 
 ### Technical Notes:
 

@@ -26,6 +26,9 @@ jobs:
     - name: Build
       run: npm run build
       
+    - name: Copy .nojekyll to build output
+      run: cp .nojekyll dist/public/
+      
     - name: Setup Pages
       uses: actions/configure-pages@v4
       
