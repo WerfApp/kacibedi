@@ -24,7 +24,7 @@ export default function Home() {
 
   // ASCII characters for fluid simulation
   const FLUID_CHARS = ['~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';', '▴', '▾', '◆', '◇'];
-  const PARTICLE_SIZE = 10;
+  const PARTICLE_SIZE = 16;
   const POOL_HEIGHT = 120; // Height of fluid pool from bottom
   const ATTRACTION_RADIUS = 350;
   const MAX_RISE_HEIGHT = 500;
@@ -258,76 +258,31 @@ export default function Home() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
+      // Debug particle count and canvas info
+      if (Math.floor(timeRef.current * 10) % 60 === 0) {
+        console.log(`Canvas: ${canvas.width}x${canvas.height}, Rendering ${particlesRef.current.length} particles`);
+        if (particlesRef.current.length > 0) {
+          const sample = particlesRef.current[0];
+          console.log(`Sample: x=${sample.x.toFixed(1)}, y=${sample.y.toFixed(1)}, char="${sample.char}"`);
+          console.log(`Font: ${ctx.font}, fillStyle: ${ctx.fillStyle}`);
+        }
+      }
+      
       // Batch render by opacity for performance
       const regularParticles = particlesRef.current.filter(p => !p.isSplash);
       const splashParticles = particlesRef.current.filter(p => p.isSplash);
       
-      // Render regular fluid particles
+      // Render regular fluid particles - set color for each particle
       regularParticles.forEach(particle => {
-        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        const distanceFromMouse = Math.sqrt(
-          (mouseRef.current.x - particle.x) ** 2 + (mouseRef.current.y - particle.y) ** 2
-        );
+        // Set bright, visible color for each particle
+        ctx.fillStyle = 'rgba(0, 255, 255, 1.0)'; // Bright cyan
         
-        const heightFromBottom = canvas.height - particle.y;
-        const heightFactor = Math.min(1.0, heightFromBottom / (POOL_HEIGHT + MAX_RISE_HEIGHT));
-        
-        let alpha = Math.max(0.4, particle.intensity);
-        
-        // Enhanced mouse proximity effect
-        if (!isMouseOverButtonRef.current && distanceFromMouse < ATTRACTION_RADIUS) {
-          const proximityFactor = (ATTRACTION_RADIUS - distanceFromMouse) / ATTRACTION_RADIUS;
-          alpha += proximityFactor * 0.6;
-        }
-        
-        // Movement-based intensity
-        if (speed > 0.8) alpha += speed * 0.3;
-        
-        // Hokusai-inspired fluid colors with better visibility
-        if (particle.y < canvas.height - POOL_HEIGHT - 100) {
-          // High-rising particles - bright white/cyan
-          if (speed > 3) {
-            ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(alpha, 1.0)})`;
-          } else if (speed > 1.5) {
-            ctx.fillStyle = `rgba(236, 254, 255, ${Math.min(alpha, 0.95)})`;
-          } else {
-            ctx.fillStyle = `rgba(165, 243, 252, ${Math.min(alpha, 0.85)})`;
-          }
-        } else if (speed > 2.5) {
-          // Fast surface particles - bright cyan
-          ctx.fillStyle = `rgba(236, 254, 255, ${Math.min(alpha, 0.9)})`;
-        } else if (speed > 1.2) {
-          // Medium speed - cyan
-          ctx.fillStyle = `rgba(165, 243, 252, ${Math.min(alpha, 0.8)})`;
-        } else if (speed > 0.4) {
-          // Slow movement - blue-cyan  
-          ctx.fillStyle = `rgba(103, 232, 249, ${Math.min(alpha, 0.75)})`;
-        } else if (heightFactor > 0.7) {
-          // Surface particles - light blue with better visibility
-          ctx.fillStyle = `rgba(147, 197, 253, ${Math.min(alpha, 0.7)})`;
-        } else if (heightFactor > 0.3) {
-          // Mid-depth - darker blue but still visible
-          ctx.fillStyle = `rgba(96, 165, 250, ${Math.min(alpha, 0.6)})`;
-        } else {
-          // Deep particles - ensure minimum visibility
-          ctx.fillStyle = `rgba(71, 85, 105, ${Math.min(alpha, 0.5)})`;
-        }
-        
-        // Dynamic scaling based on height, depth and movement
-        let scale = 0.8 + (heightFactor * 0.4) + (speed * 0.1);
-        if (particle.y < canvas.height - POOL_HEIGHT - 50) {
-          scale += 0.2; // Larger when high above pool
-        }
-        scale = Math.min(scale, 1.5); // Cap maximum size
-        
-        ctx.save();
-        ctx.scale(scale, scale);
+        // Simple rendering for visibility
         ctx.fillText(
           particle.char,
-          particle.x / scale,
-          particle.y / scale
+          particle.x,
+          particle.y
         );
-        ctx.restore();
       });
       
       // Render splash particles with different styling
