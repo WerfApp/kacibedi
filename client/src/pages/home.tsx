@@ -26,8 +26,8 @@ export default function Home() {
   const FLUID_CHARS = ['~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';', '▴', '▾', '◆', '◇'];
   const PARTICLE_SIZE = 10;
   const POOL_HEIGHT = 120; // Height of fluid pool from bottom
-  const ATTRACTION_RADIUS = 250;
-  const MAX_RISE_HEIGHT = 300;
+  const ATTRACTION_RADIUS = 350;
+  const MAX_RISE_HEIGHT = 500;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -96,15 +96,16 @@ export default function Home() {
       const mouseX = mouseRef.current.x;
       const mouseY = mouseRef.current.y;
       
-      // Process particles - remove expired splash particles first
-      particlesRef.current = particlesRef.current.filter(particle => {
+      // Update all particles without removing during iteration
+      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+        const particle = particlesRef.current[i];
+        
+        // Remove expired splash particles
         if (particle.isSplash && particle.splashLife <= 0) {
-          return false; // Remove expired splash particles
+          particlesRef.current.splice(i, 1);
+          continue;
         }
-        return true;
-      });
-      
-      particlesRef.current.forEach((particle, index) => {
+        
         // Handle splash particles differently
         if (particle.isSplash) {
           particle.splashLife--;
@@ -124,7 +125,7 @@ export default function Home() {
           // Fade and slow down
           particle.vx *= 0.98;
           particle.intensity *= 0.995;
-          return;
+          continue;
         }
         
         // Base wave motion for regular particles
@@ -132,39 +133,40 @@ export default function Home() {
         const targetY = particle.baseY + waveInfluence;
         
         if (!isMouseOverButtonRef.current) {
-          // Strong mouse attraction with distance-based intensity
+          // Very strong mouse attraction for dramatic waves
           const dx = mouseX - particle.x;
           const dy = mouseY - particle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < ATTRACTION_RADIUS && distance > 0) {
-            // Stronger attraction closer to mouse
+            // Much stronger attraction with exponential falloff
             const normalizedDistance = distance / ATTRACTION_RADIUS;
-            const attractionForce = (1 - normalizedDistance) ** 2;
+            const attractionForce = (1 - normalizedDistance) ** 1.5; // Less steep falloff for wider effect
             
-            // Vertical attraction is stronger
-            const verticalBoost = mouseY < particle.baseY - 50 ? 2.0 : 1.0;
-            const attractionStrength = attractionForce * 1.2 * verticalBoost;
+            // Extra strong vertical attraction for wave formation
+            const verticalBoost = mouseY < particle.baseY ? 3.5 : 2.0;
+            const attractionStrength = attractionForce * 2.5 * verticalBoost;
             
-            particle.vx += (dx / distance) * attractionStrength;
-            particle.vy += (dy / distance) * attractionStrength * verticalBoost;
+            particle.vx += (dx / distance) * attractionStrength * 0.8;
+            particle.vy += (dy / distance) * attractionStrength;
             
-            // Allow particles to rise high above the pool
-            if (distance < 80 && mouseY < particle.baseY - 20) {
-              particle.vy += -1.5 * attractionForce; // Extra upward force
+            // Massive upward force for dramatic waves
+            if (distance < 120) {
+              const upwardForce = -3.0 * attractionForce * (120 - distance) / 120;
+              particle.vy += upwardForce;
             }
           }
         } else {
-          // Button hover - crash effect with splash
-          if (particle.y < canvas.height - POOL_HEIGHT - 50) {
-            particle.vy += 0.8; // Strong gravity
+          // Button hover - dramatic crash with strong gravity
+          if (particle.y < canvas.height - POOL_HEIGHT - 30) {
+            particle.vy += 1.2; // Very strong gravity for dramatic crash
             
-            // Create splash when crashing down
-            if (particle.vy > 3 && particle.y > canvas.height - POOL_HEIGHT - 20) {
-              createSplash(particle.x, particle.y, Math.abs(particle.vy) * 0.3);
+            // Create splash when crashing down hard
+            if (particle.vy > 2.5 && particle.y > canvas.height - POOL_HEIGHT - 40) {
+              createSplash(particle.x, particle.y, Math.abs(particle.vy) * 0.4);
             }
           } else {
-            particle.vy += 0.25; // Normal gravity
+            particle.vy += 0.4; // Normal gravity in pool
           }
         }
         
@@ -226,7 +228,7 @@ export default function Home() {
         } else {
           particle.char = FLUID_CHARS[Math.floor(Math.random() * 4)];
         }
-      });
+      }
       
       // Remove excess splash particles for performance
       const maxSplashParticles = 200;
@@ -240,6 +242,8 @@ export default function Home() {
 
     // Render fluid with optimizations
     const renderFluid = () => {
+      if (!canvas || !ctx) return;
+      
       // Clear canvas with gradient background
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
       gradient.addColorStop(0, '#0F172A');
