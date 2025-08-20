@@ -1,0 +1,281 @@
+Got it. Here’s a clean drop-in patch that gives you:
+A big “+” FAB that opens a title + optional description modal.
+Single-click = show description; double-click = drill in.
+Hover = smooth scale-up and description reveal.
+Re-center animation when a node becomes the root.
+Extra null-guards to avoid the runtime overlay you’re seeing.
+1) Add the FAB (bottom-right) with modal
+Create src/components/AddFAB.tsx:
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useStore } from "@/state/useStore";
+
+export default function AddFAB() {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const createNode = useStore(s => s.createNodeAtCursorOrOrbit);
+  const rootId = useStore(s => s.view.rootId);
+
+  return (
+    <>
+      <button
+        aria-label="Add node"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-cyan-500/90 hover:bg-cyan-500 text-white text-3xl leading-none"
+      >
+        +
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setOpen(false)}
+          >
+            <motion.div
+              className="w-[min(92vw,520px)] rounded-2xl bg-neutral-900 text-neutral-100 p-5"
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-semibold mb-3">New node</h3>
+              <label className="block text-sm mb-1">Title</label>
+              <input
+                value={title}
+                onChange={(e)=>setTitle(e.target.value)}
+                className="w-full rounded-md bg-neutral-800 px-3 py-2 mb-3 outline-none focus:ring-2 ring-cyan-500"
+                placeholder="e.g. Quantum notes"
+                autoFocus
+              />
+              <label className="block text-sm mb-1">Description (optional)</label>
+              <textarea
+                value={body}
+                onChange={(e)=>setBody(e.target.value)}
+                className="w-full rounded-md bg-neutral-800 px-3 py-2 h-28 mb-4 outline-none focus:ring-2 ring-cyan-500 resize-none"
+                placeholder="Short summary"
+              />
+              <div className="flex gap-2 justify-end">
+                <button className="px-3 py-2 rounded-md bg-neutral-800" onClick={()=>setOpen(false)}>Cancel</button>
+                <button
+                  className="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500"
+                  onClick={()=>{
+                    if (!title.trim()) return;
+                    createNode({ rootId, title: title.trim(), body: body.trim() || undefined });
+                    setTitle(""); setBody(""); setOpen(false);
+                  }}
+                >Create</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+Mount it in src/App.tsx (near the end of the component, after the scene):
+import AddFAB from "@/components/AddFAB";
+// ...
+<AddFAB />
+2) Store updates (creation at cursor / orbit fallback, selection rules)
+Patch src/state/useStore.ts (add safe helpers and single vs double click logic hooks):
+// add to state shape:
+hoverId: string | null;
+setHoverId: (id: string | null) => void;
+selectId: string | null;
+setSelectId: (id: string | null) => void;
+lastPointerWorld: { x:number; y:number; z:number } | null;
+setLastPointerWorld: (p:{x:number;y:number;z:number}|null)=>void;
+
+// action used by FAB
+createNodeAtCursorOrOrbit: ({rootId, title, body}:{rootId:string; title:string; body?:string}) => void;
+
+// action to drill into node with camera recenter
+drillInto: (id: string) => void;
+And implement:
+createNodeAtCursorOrOrbit: ({ rootId, title, body }) => {
+  const { nodes, addNode, view, lastPointerWorld } = get();
+  const parent = nodes.get(rootId);
+  if (!parent) return;
+  const r = 3.2; // distance from center
+  const pos = lastPointerWorld
+    ? lastPointerWorld
+    : { x: parent.x + r, y: parent.y, z: parent.z };
+  const node = addNode({
+    parentId: rootId,
+    title,
+    body,
+    position: pos, // if your type separates pos, otherwise set x/y/z
+  });
+  set({ selectId: node.id });
+},
+
+drillInto: (id) => {
+  const { nodes } = get();
+  if (!nodes.has(id)) return;
+  // update current root
+  set(state => ({ view: { ...state.view, rootId: id }}));
+  // camera recenter is handled by scene effect (see below)
+},
+
+setHoverId: (id) => set({ hoverId: id }),
+setSelectId: (id) => set({ selectId: id }),
+setLastPointerWorld: (p) => set({ lastPointerWorld: p }),
+Make sure addNode accepts {position} or sets x/y/z; add null checks anywhere the code reads nodes.get(id)!.
+3) Camera recenter animation on root change
+In src/scene/MindMap.tsx, add a small effect that springs the camera to the new root:
+import { useThree, useFrame } from "@react-three/fiber";
+import { damp } from "maath/easing";
+import { useEffect, useRef } from "react";
+import { useStore } from "@/state/useStore";
+
+function useRecenterOnRoot() {
+  const rootId = useStore(s=>s.view.rootId);
+  const nodes = useStore(s=>s.nodes);
+  const { camera } = useThree();
+  const target = useRef<[number,number,number]>([0,0,0]);
+
+  useEffect(()=>{
+    const root = nodes.get(rootId);
+    if (!root) return;
+    target.current = [root.x ?? 0, root.y ?? 0, root.z ?? 0];
+  }, [rootId, nodes]);
+
+  useFrame((_, dt)=>{
+    const [tx,ty,tz] = target.current;
+    // smooth move & lookAt
+    damp(camera.position, "x", tx + 8, 4, dt);
+    damp(camera.position, "y", ty + 6, 4, dt);
+    damp(camera.position, "z", tz + 10, 4, dt);
+    camera.lookAt(tx, ty, tz);
+  });
+}
+Then call useRecenterOnRoot() inside your <MindMap/> scene component.
+Also record world pointer for FAB placement:
+// in Canvas onPointerMove:
+onPointerMove={(e)=>{
+  // world coords under cursor
+  const p = e.point; // r3f provides world point
+  useStore.getState().setLastPointerWorld({ x:p.x, y:p.y, z:p.z });
+}}
+4) Node hover animation, single-click info, double-click drill
+In src/scene/Nodes.tsx, update the per-node component. Works with <Instances/>:
+import { useRef, useMemo, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Html, Instances, Instance } from "@react-three/drei";
+import { useStore } from "@/state/useStore";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function Nodes() {
+  const data = useStore(s => s.visibleNodes); // array for current root
+  const hoverId = useStore(s=>s.hoverId);
+  const setHoverId = useStore(s=>s.setHoverId);
+  const selectId = useStore(s=>s.selectId);
+  const setSelectId = useStore(s=>s.setSelectId);
+  const drillInto = useStore(s=>s.drillInto);
+
+  return (
+    <Instances limit={5000}>
+      <sphereGeometry args={[1, 16, 16]} />
+      <meshStandardMaterial roughness={0.6} />
+      {data.map(n => (
+        <NodeInst
+          key={n.id}
+          node={n}
+          hovered={hoverId === n.id}
+          selected={selectId === n.id}
+          onHover={(h)=> setHoverId(h ? n.id : null)}
+          onClick={(detail)=> {
+            if (detail === 2) { drillInto(n.id); return; }  // double click = drill
+            setSelectId(n.id);                              // single click = select/show description
+          }}
+        />
+      ))}
+    </Instances>
+  );
+}
+
+function NodeInst({
+  node, hovered, selected,
+  onHover, onClick
+}:{
+  node:any; hovered:boolean; selected:boolean;
+  onHover:(h:boolean)=>void;
+  onClick:(detail:number)=>void;
+}) {
+  const ref = useRef<any>(null);
+  const [scale, setScale] = useState(1);
+
+  useFrame((_, dt)=>{
+    const target = hovered || selected ? 1.25 : 1.0;
+    const s = scale + (target - scale) * Math.min(1, dt*6); // smooth expand
+    setScale(s);
+    if (ref.current) ref.current.scale.setScalar(s);
+  });
+
+  return (
+    <group position={[node.x||0, node.y||0, node.z||0]}>
+      <Instance
+        ref={ref}
+        color={node.colorHex}
+        onPointerOver={(e)=>{ e.stopPropagation(); onHover(true); }}
+        onPointerOut={(e)=>{ e.stopPropagation(); onHover(false); }}
+        onClick={(e)=>{ e.stopPropagation(); onClick((e as any).detail ?? 1); }}
+      />
+
+      {/* description reveal on hover/selection */}
+      <Html
+        center
+        distanceFactor={10}
+        zIndexRange={[1,0]}
+        transform
+        style={{ pointerEvents: "none" }}
+      >
+        <AnimatePresence>
+          {(hovered || selected) && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              className="rounded-xl px-3 py-2 text-sm max-w-[260px]
+                         bg-neutral-900/80 text-neutral-100 backdrop-blur
+                         shadow-lg border border-white/10"
+            >
+              <div className="font-medium">{node.title}</div>
+              {node.body && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="text-neutral-300 text-xs overflow-hidden mt-1 leading-snug"
+                >
+                  {node.body}
+                </motion.div>
+              )}
+              <div className="text-[10px] opacity-60 mt-1">(double-click to open)</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Html>
+    </group>
+  );
+}
+Notes:
+We use e.detail to disambiguate single vs double clicks.
+Smooth hover growth uses a per-frame lerp; description reveals with Framer Motion.
+pointerEvents: "none" avoids accidental captures by the HTML overlay.
+5) Guard against the “unknown runtime error” on click
+Common culprit is reading undefined node positions or assuming an id exists. Add safe guards wherever you dereference a node during click/center logic, e.g. in handlers that previously did nodes.get(id)!. Replace with:
+const node = nodes.get(id);
+if (!node) return;
+Also ensure worker messages are validated in src/workers/layout.ts:
+// before using n.x/y/z ensure they are finite numbers
+if (!Number.isFinite(n.x)) n.x = 0;
+if (!Number.isFinite(n.y)) n.y = 0;
+if (!Number.isFinite(n.z)) n.z = 0;
+6) Wire single/double-click behaviour clearly
+Single click: sets selectId -> description shows with hover scaling kept.
+Double click: calls drillInto(id) -> root changes -> camera springs to node.
+Hover: scale grows smoothly, description fades & expands.
