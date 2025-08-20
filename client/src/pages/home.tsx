@@ -56,32 +56,35 @@ export default function Home() {
       initializeFluid();
     };
 
-    // Initialize SPH fluid particles
+    // Create ASCII sea/ocean effect
     const initializeFluid = () => {
-      const numParticles = 1800; // Target particle count for good performance
-      const fluidWidth = canvas.width * 0.8;
-      const fluidHeight = POOL_HEIGHT;
-      
       particlesRef.current = [];
       
-      for (let i = 0; i < numParticles; i++) {
-        const x = (fluidWidth / Math.sqrt(numParticles)) * (i % Math.floor(Math.sqrt(numParticles))) + (canvas.width - fluidWidth) / 2;
-        const y = canvas.height - fluidHeight + (fluidHeight / Math.sqrt(numParticles)) * Math.floor(i / Math.sqrt(numParticles));
-        
-        particlesRef.current.push({
-          x: x + (Math.random() - 0.5) * H * 0.5,
-          y: y + (Math.random() - 0.5) * H * 0.5,
-          vx: 0,
-          vy: 0,
-          m: 1.0,
-          rho: RHO0,
-          p: 0,
-          fx: 0,
-          fy: 0,
-          charIndex: Math.floor(Math.random() * FLUID_CHARS.length),
-          colorIndex: 0
-        });
+      // Create dense ASCII sea at bottom of screen
+      const cols = Math.floor(canvas.width / 8); // Closer spacing for sea effect
+      const rows = Math.floor(POOL_HEIGHT / 12); // Multiple rows for depth
+      
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = col * 8 + 4; // Regular grid spacing
+          const y = canvas.height - POOL_HEIGHT + row * 12; // Stack rows from bottom
+          
+          particlesRef.current.push({
+            x: x + (Math.random() - 0.5) * 4,
+            y: y + (Math.random() - 0.5) * 4,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 1,
+            m: 1.0,
+            rho: RHO0,
+            p: 0,
+            fx: 0,
+            fy: 0,
+            charIndex: Math.floor(Math.random() * 6), // Use first 6 wave characters
+            colorIndex: 0
+          });
+        }
       }
+      console.log(`Created ${particlesRef.current.length} particles for ASCII sea`);
     };
 
     // SPH Kernels
@@ -137,123 +140,60 @@ export default function Home() {
       return neighbors;
     };
 
-    // SPH Physics simulation
+    // Simple wave simulation for ASCII sea
     const updateFluid = () => {
-      const dt = 0.016; // Fixed timestep for stability
-      timeRef.current += dt;
+      timeRef.current += 0.016;
       const mouseX = mouseRef.current.x;
       const mouseY = mouseRef.current.y;
       
-      // Build spatial hash
-      buildSpatialHash();
-      
-      // Density pass
       for (let i = 0; i < particlesRef.current.length; i++) {
         const particle = particlesRef.current[i];
-        const neighbors = getNeighbors(particle);
         
-        particle.rho = 0;
-        for (const j of neighbors) {
-          const neighbor = particlesRef.current[j];
-          const dx = particle.x - neighbor.x;
-          const dy = particle.y - neighbor.y;
-          const r = Math.sqrt(dx * dx + dy * dy);
-          particle.rho += neighbor.m * poly6Kernel(r);
-        }
+        // Create wave motion with time and position
+        const waveBase = Math.sin(timeRef.current + particle.x * 0.01) * 3;
+        const waveSecondary = Math.sin(timeRef.current * 1.5 + particle.x * 0.008) * 2;
+        const baseY = canvas.height - POOL_HEIGHT + (particle.y - (canvas.height - POOL_HEIGHT));
         
-        // Pressure calculation
-        particle.p = K * Math.max(particle.rho - RHO0, 0);
-      }
-      
-      // Forces pass
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        const particle = particlesRef.current[i];
-        const neighbors = getNeighbors(particle);
-        
-        particle.fx = 0;
-        particle.fy = G * particle.m; // Gravity
-        
-        for (const j of neighbors) {
-          if (i === j) continue;
-          
-          const neighbor = particlesRef.current[j];
-          const dx = particle.x - neighbor.x;
-          const dy = particle.y - neighbor.y;
-          const r = Math.sqrt(dx * dx + dy * dy);
-          
-          if (r > 0) {
-            // Pressure force
-            const pressureForce = -neighbor.m * (particle.p + neighbor.p) / (2 * neighbor.rho) * spikyGradient(r);
-            particle.fx += pressureForce * (dx / r);
-            particle.fy += pressureForce * (dy / r);
-            
-            // Viscosity force
-            const viscForce = MU * neighbor.m * viscosityLaplacian(r) / neighbor.rho;
-            particle.fx += viscForce * (neighbor.vx - particle.vx);
-            particle.fy += viscForce * (neighbor.vy - particle.vy);
-          }
-        }
-        
-        // Cursor attraction (only when enabled)
+        // Mouse attraction when enabled
         if (attractOnRef.current) {
           const dx = mouseX - particle.x;
           const dy = mouseY - particle.y;
-          const d = Math.sqrt(dx * dx + dy * dy);
+          const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (d > 1) {
-            const force = Math.min(CURSOR_G / (d * d + CURSOR_EPS), CURSOR_FMAX) * particle.m;
-            particle.fx += force * (dx / d);
-            particle.fy += force * (dy / d);
+          if (distance < 200 && distance > 0) {
+            const force = (1 - distance / 200) * 0.8;
+            particle.vx += (dx / distance) * force;
+            particle.vy += (dy / distance) * force;
           }
         }
-      }
-      
-      // Integration
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        const particle = particlesRef.current[i];
         
-        // Semi-implicit Euler
-        const ax = particle.fx / particle.rho;
-        const ay = particle.fy / particle.rho;
+        // Natural wave motion
+        particle.vy += (baseY + waveBase + waveSecondary - particle.y) * 0.02;
+        particle.vx += (Math.random() - 0.5) * 0.1; // Small random movement
         
-        particle.vx += ax * dt;
-        particle.vy += ay * dt;
+        // Damping
+        particle.vx *= 0.95;
+        particle.vy *= 0.95;
         
-        // Clamp velocities
-        const v = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        if (v > VMAX) {
-          particle.vx = (particle.vx / v) * VMAX;
-          particle.vy = (particle.vy / v) * VMAX;
+        // Update position
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+        
+        // Keep particles in sea area
+        if (particle.x < 0) particle.x = canvas.width;
+        if (particle.x > canvas.width) particle.x = 0;
+        if (particle.y < canvas.height - POOL_HEIGHT) particle.y = canvas.height - POOL_HEIGHT;
+        if (particle.y > canvas.height - 20) particle.y = canvas.height - 20;
+        
+        // Update character based on wave motion
+        const waveIntensity = Math.abs(waveBase + waveSecondary);
+        if (waveIntensity > 4) {
+          particle.charIndex = 14 + Math.floor(Math.random() * 4); // Intense wave chars
+        } else if (waveIntensity > 2) {
+          particle.charIndex = 8 + Math.floor(Math.random() * 6); // Medium wave chars
+        } else {
+          particle.charIndex = Math.floor(Math.random() * 8); // Calm wave chars
         }
-        
-        particle.x += particle.vx * dt;
-        particle.y += particle.vy * dt;
-        
-        // Boundary conditions with reflection
-        if (particle.x < 0) {
-          particle.x = 0;
-          particle.vx *= -DAMPING;
-        }
-        if (particle.x > canvas.width) {
-          particle.x = canvas.width;
-          particle.vx *= -DAMPING;
-        }
-        if (particle.y < 0) {
-          particle.y = 0;
-          particle.vy *= -DAMPING;
-        }
-        if (particle.y > canvas.height) {
-          particle.y = canvas.height;
-          particle.vy *= -DAMPING;
-        }
-        
-        // Update character and color based on speed/density
-        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        const densityFactor = Math.min(1.0, particle.rho / (RHO0 * 2));
-        
-        particle.charIndex = Math.floor((speed / 50 + densityFactor) * FLUID_CHARS.length * 0.5);
-        particle.charIndex = Math.min(particle.charIndex, FLUID_CHARS.length - 1);
-        particle.colorIndex = Math.floor(speed / 100);
       }
     };
 
@@ -275,53 +215,35 @@ export default function Home() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
-      // Debug: Check canvas and particle positions
-      console.log(`Canvas: ${canvas.width}x${canvas.height}, Particles: ${particlesRef.current.length}`);
-      if (particlesRef.current.length > 0) {
-        const p = particlesRef.current[0];
-        console.log(`First particle: x=${p.x}, y=${p.y}, char='${FLUID_CHARS[p.charIndex] || 'undefined'}', visible=${p.y < canvas.height && p.y > 0}`);
-      }
+      // ASCII Sea rendering
       
 
       
-      // Render SPH particles with proper character mapping
+      // Render ASCII sea with dynamic colors
       particlesRef.current.forEach(particle => {
         const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
         const distanceFromMouse = Math.sqrt(
           (mouseRef.current.x - particle.x) ** 2 + (mouseRef.current.y - particle.y) ** 2
         );
         
-        // Dynamic coloring based on movement and density
+        // Sea coloring - cyan/blue tones
         if (distanceFromMouse < 100 && attractOnRef.current) {
-          // Close to mouse and attraction enabled - bright colors
-          if (speed > 50) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 1.0)'; // White for high speed
-          } else if (speed > 30) {
-            ctx.fillStyle = 'rgba(255, 215, 0, 0.9)'; // Gold for fast movement
-          } else {
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Cyan for attraction
-          }
-        } else if (speed > 40) {
-          // Fast movement - bright cyan
+          // Mouse attraction - bright aqua colors
+          ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Bright cyan
+        } else if (speed > 3) {
+          // Active waves - medium cyan
           ctx.fillStyle = 'rgba(64, 224, 255, 0.8)';
-        } else if (speed > 20) {
-          // Medium movement - medium cyan
+        } else if (speed > 1) {
+          // Gentle waves - soft cyan  
           ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
         } else {
-          // Calm state - dim cyan
+          // Calm sea - dim blue-cyan
           ctx.fillStyle = 'rgba(120, 180, 220, 0.6)';
         }
         
-        // Render the character from the palette
+        // Render sea character
         const char = FLUID_CHARS[Math.max(0, Math.min(particle.charIndex, FLUID_CHARS.length - 1))];
-        
-        // Debug: render first few particles with simple characters for testing
-        if (particlesRef.current.indexOf(particle) < 10) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 1.0)'; // Bright white for visibility
-          ctx.fillText('*', particle.x, particle.y); // Simple character
-        } else {
-          ctx.fillText(char, particle.x, particle.y);
-        }
+        ctx.fillText(char, particle.x, particle.y);
       });
     };
 
