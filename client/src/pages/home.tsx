@@ -80,36 +80,61 @@ export default function Home() {
       for (let i = 0; i < particlesRef.current.length; i++) {
         const particle = particlesRef.current[i];
         
-        // Gentle wave motion for sitting water
-        const waveMotion = Math.sin(timeRef.current * 2 + particle.x * 0.012) * 2;
-        const targetY = particle.baseY + waveMotion;
+        // Enhanced wave motion - more visible movement
+        const waveBase = Math.sin(timeRef.current * 1.2 + particle.x * 0.015) * 4;
+        const waveSecondary = Math.sin(timeRef.current * 1.8 + particle.x * 0.008) * 2;
+        const targetY = particle.baseY + waveBase + waveSecondary;
         
-        // Strong cursor attraction - water rises toward mouse
+        // Much stronger cursor attraction
         if (attractOnRef.current) {
           const dx = mouseX - particle.x;
           const dy = mouseY - particle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           if (distance < ATTRACTION_RADIUS && distance > 0) {
-            const force = Math.pow(1 - distance / ATTRACTION_RADIUS, 2) * 5;
-            particle.vx += (dx / distance) * force;
-            particle.vy += (dy / distance) * force;
+            const normalizedDistance = distance / ATTRACTION_RADIUS;
+            const force = Math.pow(1 - normalizedDistance, 2) * 12; // Increased force
             
-            // Extra upward force for dramatic rise
-            if (mouseY < particle.y) {
-              particle.vy -= force * 2;
+            particle.vx += (dx / distance) * force * 0.8;
+            particle.vy += (dy / distance) * force * 0.8;
+            
+            // Strong upward boost when mouse is above
+            if (mouseY < particle.y && distance < 200) {
+              particle.vy -= force * 1.5;
             }
           }
         }
         
-        // Return to rest position (weaker when mouse is near)
+        // Add gravity and fluid motion
+        particle.vy += 0.15; // Gravity pulling down
+        
+        // Fluid interaction - particles influence nearby particles
+        for (let j = 0; j < particlesRef.current.length; j += 10) { // Sample every 10th particle for performance
+          if (i === j) continue;
+          const other = particlesRef.current[j];
+          const dx = other.x - particle.x;
+          const dy = other.y - particle.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 20 && distance > 0) {
+            const force = (20 - distance) * 0.02;
+            particle.vx += (dx / distance) * force;
+            particle.vy += (dy / distance) * force;
+          }
+        }
+        
+        // Add continuous gentle motion for flow effect
+        particle.vx += (Math.random() - 0.5) * 0.4;
+        particle.vy += Math.sin(timeRef.current + particle.x * 0.01) * 0.3;
+        
+        // Return to rest position (weaker when attracted)
         const distanceToMouse = Math.sqrt((mouseX - particle.x) ** 2 + (mouseY - particle.y) ** 2);
-        const restoreStrength = distanceToMouse < ATTRACTION_RADIUS ? 0.01 : 0.03;
+        const restoreStrength = distanceToMouse < ATTRACTION_RADIUS ? 0.003 : 0.02;
         particle.vy += (targetY - particle.y) * restoreStrength;
         
-        // Damping
-        particle.vx *= 0.92;
-        particle.vy *= 0.92;
+        // Less damping for more fluid movement
+        particle.vx *= 0.98;
+        particle.vy *= 0.98;
         
         // Update position
         particle.x += particle.vx;
