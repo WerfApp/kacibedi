@@ -71,82 +71,55 @@ export default function Home() {
 
 
 
-    // Water pool simulation with cursor attraction
+    // Simple, working water simulation
     const updateFluid = () => {
       timeRef.current += 0.016;
       const mouseX = mouseRef.current.x;
       const mouseY = mouseRef.current.y;
       
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        const particle = particlesRef.current[i];
+      particlesRef.current.forEach((particle, i) => {
+        // Calm ambient wave motion
+        const wave = Math.sin(timeRef.current + particle.x * 0.005) * 3;
+        const restY = particle.baseY + wave;
         
-        // Very gentle ambient wave motion
-        const gentleWave = Math.sin(timeRef.current * 0.5 + particle.x * 0.01) * 1;
-        const targetY = particle.baseY + gentleWave;
-        
-        // Smooth cursor attraction - only when mouse is close
+        // Mouse attraction
         const dx = mouseX - particle.x;
         const dy = mouseY - particle.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (distance < ATTRACTION_RADIUS && attractOnRef.current) {
-          const normalizedDistance = distance / ATTRACTION_RADIUS;
-          const attractionStrength = Math.pow(1 - normalizedDistance, 3) * 8;
+        if (dist < 200) {
+          const force = (200 - dist) / 200;
+          particle.vx += dx * force * 0.001;
+          particle.vy += dy * force * 0.002;
           
-          // Gentle attraction toward mouse
-          particle.vx += (dx / distance) * attractionStrength * 0.15;
-          particle.vy += (dy / distance) * attractionStrength * 0.15;
-          
-          // Extra upward force when mouse is above water
-          if (mouseY < particle.y - 20) {
-            particle.vy -= attractionStrength * 0.3;
+          // Strong upward pull when mouse is above
+          if (mouseY < particle.y) {
+            particle.vy -= force * 0.8;
           }
         }
         
-        // Gentle gravity
-        particle.vy += 0.05;
+        // Return to rest position
+        particle.vy += (restY - particle.y) * 0.01;
         
-        // Return to calm position
-        const restoreForce = distance < ATTRACTION_RADIUS ? 0.008 : 0.025;
-        particle.vy += (targetY - particle.y) * restoreForce;
-        
-        // Strong damping for calm water
-        particle.vx *= 0.85;
-        particle.vy *= 0.85;
-        
-        // Update position
+        // Apply velocity with damping
+        particle.vx *= 0.95;
+        particle.vy *= 0.95;
         particle.x += particle.vx;
         particle.y += particle.vy;
         
-        // Boundaries
-        if (particle.x < 0 || particle.x > canvas.width) {
-          particle.vx *= -0.3;
-          particle.x = Math.max(0, Math.min(canvas.width, particle.x));
-        }
-        if (particle.y > canvas.height - 10) {
-          particle.y = canvas.height - 10;
-          particle.vy *= -0.2;
-        }
+        // Keep in bounds
+        if (particle.x < 0) particle.x = canvas.width;
+        if (particle.x > canvas.width) particle.x = 0;
+        if (particle.y > canvas.height - 20) particle.y = canvas.height - 20;
         
-        // Limit maximum height
-        const maxHeight = canvas.height - POOL_HEIGHT - MAX_RISE_HEIGHT;
-        if (particle.y < maxHeight) {
-          particle.y = maxHeight;
-          particle.vy = Math.abs(particle.vy) * 0.3;
-        }
-        
-        // Update character based on activity
-        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        const heightFromBase = Math.max(0, particle.baseY - particle.y);
-        
-        if (speed > 3 || heightFromBase > 50) {
-          particle.charIndex = Math.min(17, 12 + Math.floor(speed + heightFromBase / 20));
-        } else if (speed > 1 || heightFromBase > 20) {
-          particle.charIndex = 6 + Math.floor((speed + heightFromBase / 30) * 2);
+        // Update character
+        const speed = Math.abs(particle.vx) + Math.abs(particle.vy);
+        if (speed > 2) {
+          particle.charIndex = 6 + Math.floor(Math.random() * 6);
         } else {
           particle.charIndex = Math.floor(Math.random() * 6);
         }
-      }
+      });
     };
 
     // Render fluid with optimizations
