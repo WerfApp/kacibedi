@@ -92,32 +92,39 @@ export default function Home() {
         const wave = Math.sin(timeRef.current * 0.8 + particle.x * 0.005) * 2;
         const restY = particle.baseY + wave;
         
-        // Mouse velocity creates wake effect
+        // Calculate mouse effects
         const mouseSpeed = Math.sqrt(mouse.velocityX * mouse.velocityX + mouse.velocityY * mouse.velocityY);
         const dx = mouse.x - particle.x;
         const dy = mouse.y - particle.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        // Mouse attraction based on proximity and speed
-        if (dist < 250) {
-          const proximityForce = (250 - dist) / 250;
-          const speedMultiplier = Math.min(mouseSpeed * 0.1, 3); // Cap the effect
+        // Strong mouse interaction when moving fast or close
+        if (dist < 300) {
+          const proximityForce = (300 - dist) / 300;
+          const speedBoost = Math.min(mouseSpeed * 0.3, 10); // Much stronger speed effect
           
-          // Basic attraction
-          particle.vx += dx * proximityForce * 0.001;
-          particle.vy += dy * proximityForce * 0.002;
+          // Direction-based attraction gets stronger with speed
+          const attractionStrength = (0.003 + speedBoost * 0.001) * proximityForce;
+          particle.vx += (dx / dist) * attractionStrength;
+          particle.vy += (dy / dist) * attractionStrength;
           
-          // Velocity-based wake effect
-          if (mouseSpeed > 5) {
-            const wakeForceX = mouse.velocityX * proximityForce * 0.05;
-            const wakeForceY = mouse.velocityY * proximityForce * 0.05;
-            particle.vx += wakeForceX;
-            particle.vy += wakeForceY;
+          // Direct velocity transfer - water follows mouse movement
+          if (mouseSpeed > 2) {
+            const velocityTransfer = proximityForce * 0.15;
+            particle.vx += mouse.velocityX * velocityTransfer;
+            particle.vy += mouse.velocityY * velocityTransfer;
           }
           
-          // Strong upward pull when mouse is above
-          if (mouse.y < particle.y) {
-            particle.vy -= proximityForce * (0.5 + speedMultiplier * 0.2);
+          // Extra dramatic upward pull when mouse moves fast above water
+          if (mouse.y < particle.y && mouseSpeed > 3) {
+            particle.vy -= proximityForce * speedBoost * 0.3;
+          }
+          
+          // Turbulence effect for fast mouse movement
+          if (mouseSpeed > 8) {
+            const turbulence = proximityForce * speedBoost * 0.02;
+            particle.vx += (Math.random() - 0.5) * turbulence;
+            particle.vy += (Math.random() - 0.5) * turbulence;
           }
         }
         
@@ -134,12 +141,14 @@ export default function Home() {
           }
         }
         
-        // Return to rest position
-        particle.vy += (restY - particle.y) * 0.015;
+        // Return to rest position (weaker when mouse is active)
+        const restoreStrength = mouseSpeed > 5 ? 0.008 : 0.02;
+        particle.vy += (restY - particle.y) * restoreStrength;
         
-        // Apply velocity with damping
-        particle.vx *= 0.94;
-        particle.vy *= 0.94;
+        // Dynamic damping based on mouse activity
+        const dampingFactor = mouseSpeed > 3 ? 0.97 : 0.92;
+        particle.vx *= dampingFactor;
+        particle.vy *= dampingFactor;
         particle.x += particle.vx;
         particle.y += particle.vy;
         
@@ -148,16 +157,22 @@ export default function Home() {
         if (particle.x > canvas.width) particle.x = 0;
         if (particle.y > canvas.height - 20) particle.y = canvas.height - 20;
         
-        // Dynamic character selection based on activity
-        const speed = Math.abs(particle.vx) + Math.abs(particle.vy);
+        // Reactive character selection based on mouse speed and particle activity
+        const particleSpeed = Math.abs(particle.vx) + Math.abs(particle.vy);
         const heightFromBase = Math.max(0, particle.baseY - particle.y);
+        const nearMouse = dist < 150;
         
-        if (speed > 3 || heightFromBase > 30) {
-          particle.charIndex = 8 + Math.floor(Math.random() * 6); // Active water
-        } else if (speed > 1 || heightFromBase > 10) {
-          particle.charIndex = 4 + Math.floor(Math.random() * 4); // Medium activity
+        // Character changes dramatically with mouse speed
+        if (nearMouse && mouseSpeed > 10) {
+          particle.charIndex = 14 + Math.floor(Math.random() * 4); // Intense turbulence
+        } else if (nearMouse && mouseSpeed > 5) {
+          particle.charIndex = 10 + Math.floor(Math.random() * 4); // High activity
+        } else if (particleSpeed > 4 || heightFromBase > 40) {
+          particle.charIndex = 6 + Math.floor(Math.random() * 4); // Active waves  
+        } else if (particleSpeed > 1.5 || heightFromBase > 15) {
+          particle.charIndex = 3 + Math.floor(Math.random() * 3); // Medium waves
         } else {
-          particle.charIndex = Math.floor(Math.random() * 4); // Calm water
+          particle.charIndex = Math.floor(Math.random() * 3); // Calm water
         }
       });
     };
@@ -184,26 +199,39 @@ export default function Home() {
       
 
       
-      // Render ASCII sea with dynamic colors
+      // Render ASCII water with velocity-reactive colors
+      const mouse = mouseRef.current;
+      const mouseSpeed = Math.sqrt(mouse.velocityX * mouse.velocityX + mouse.velocityY * mouse.velocityY);
+      
       particlesRef.current.forEach(particle => {
-        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const particleSpeed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
         const distanceFromMouse = Math.sqrt(
-          (mouseRef.current.x - particle.x) ** 2 + (mouseRef.current.y - particle.y) ** 2
+          (mouse.x - particle.x) ** 2 + (mouse.y - particle.y) ** 2
         );
         
-        // Sea coloring - cyan/blue tones
-        if (distanceFromMouse < 100 && attractOnRef.current) {
-          // Mouse attraction - bright aqua colors
-          ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Bright cyan
-        } else if (speed > 3) {
-          // Active waves - medium cyan
-          ctx.fillStyle = 'rgba(64, 224, 255, 0.8)';
-        } else if (speed > 1) {
-          // Gentle waves - soft cyan  
-          ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
+        // Dynamic coloring based on mouse speed and proximity
+        const nearMouse = distanceFromMouse < 150;
+        const veryNear = distanceFromMouse < 80;
+        
+        if (veryNear && mouseSpeed > 8) {
+          // Intense mouse activity - bright white/cyan
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.9 + Math.min(mouseSpeed * 0.01, 0.1)})`;
+        } else if (nearMouse && mouseSpeed > 4) {
+          // Fast mouse movement - electric cyan
+          const intensity = Math.min(mouseSpeed * 0.08, 1);
+          ctx.fillStyle = `rgba(0, 255, 255, ${0.7 + intensity * 0.3})`;
+        } else if (nearMouse && mouseSpeed > 1) {
+          // Medium mouse speed - bright cyan
+          ctx.fillStyle = `rgba(64, 224, 255, ${0.6 + mouseSpeed * 0.05})`;
+        } else if (particleSpeed > 4) {
+          // High particle activity - medium cyan
+          ctx.fillStyle = 'rgba(100, 200, 255, 0.8)';
+        } else if (particleSpeed > 1.5) {
+          // Medium activity - soft cyan
+          ctx.fillStyle = 'rgba(120, 180, 220, 0.7)';
         } else {
-          // Calm sea - dim blue-cyan
-          ctx.fillStyle = 'rgba(120, 180, 220, 0.6)';
+          // Calm water - dim blue
+          ctx.fillStyle = 'rgba(100, 150, 200, 0.5)';
         }
         
         // Render water character
