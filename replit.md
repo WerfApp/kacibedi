@@ -2,11 +2,21 @@
 
 ## Overview
 
-This is a full-stack web application built with React frontend and Express.js backend. The application uses a modern tech stack including TypeScript, Tailwind CSS, and shadcn/ui components for the frontend, with Drizzle ORM for database operations and session management on the backend.
+This is a personal links website featuring an ASCII fluid simulation background. Built as a React TypeScript application with Canvas-based particle physics and interactive water animation. The site is configured for GitHub Pages deployment as a static single-page application.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+**August 20, 2025:**
+- Created personal links site with ASCII fluid simulation
+- Implemented button-focused water attraction system that works beautifully
+- Added Kaci Bedi branding with Rumi quote
+- Updated social media links (Instagram: kaciibedi, YouTube: @ytkaci, Mind Mapper: https://mind-mapper.replit.app)
+- Configured GitHub Pages deployment with automated workflow
+- Site ready for deployment to GitHub Pages from main branch
 
 ## System Architecture
 
@@ -66,6 +76,7 @@ Preferred communication style: Simple, everyday language.
 - **Zod**: Runtime type validation and schema validation
 
 ### Build and Deployment
-- **Replit Integration**: Specialized plugins for Replit development environment
+- **GitHub Pages Ready**: Configured for automatic deployment from main branch
+- **Static Site Generation**: Built with Vite for optimal performance
+- **GitHub Actions**: Automated build and deployment workflow
 - **Hot Module Replacement**: Development-time code updates
-- **Production Build**: Optimized builds for both frontend and backend
