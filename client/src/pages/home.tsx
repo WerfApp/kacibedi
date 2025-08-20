@@ -12,10 +12,10 @@ interface WaterParticle {
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: 0, y: 0, prevX: 0, prevY: 0, velocityX: 0, velocityY: 0 });
+  const mouseRef = useRef({ x: 0, y: 0 });
   const isMouseOverButtonRef = useRef(false);
   const particlesRef = useRef<WaterParticle[]>([]);
-  const attractOnRef = useRef(true);
+  const attractOnRef = useRef(false);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
   const rippleRef = useRef({ active: false, x: 0, y: 0, intensity: 0, time: 0 });
@@ -72,7 +72,7 @@ export default function Home() {
 
 
 
-    // Dynamic water simulation with mouse velocity and ripples
+    // Simple water simulation with attraction zones
     const updateFluid = () => {
       timeRef.current += 0.016;
       const mouse = mouseRef.current;
@@ -81,50 +81,32 @@ export default function Home() {
       // Update ripple effect
       if (ripple.active) {
         ripple.time += 0.016;
-        ripple.intensity *= 0.98; // Fade out
+        ripple.intensity *= 0.98;
         if (ripple.intensity < 0.1) {
           ripple.active = false;
         }
       }
       
-      particlesRef.current.forEach((particle, i) => {
-        // Base calm wave motion
-        const wave = Math.sin(timeRef.current * 0.8 + particle.x * 0.005) * 2;
+      particlesRef.current.forEach((particle) => {
+        // Gentle ambient wave motion
+        const wave = Math.sin(timeRef.current * 0.6 + particle.x * 0.008) * 1.5;
         const restY = particle.baseY + wave;
         
-        // Calculate mouse effects
-        const mouseSpeed = Math.sqrt(mouse.velocityX * mouse.velocityX + mouse.velocityY * mouse.velocityY);
-        const dx = mouse.x - particle.x;
-        const dy = mouse.y - particle.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        // Strong mouse interaction when moving fast or close
-        if (dist < 300) {
-          const proximityForce = (300 - dist) / 300;
-          const speedBoost = Math.min(mouseSpeed * 0.3, 10); // Much stronger speed effect
+        // Mouse attraction when zones are active
+        if (attractOnRef.current) {
+          const dx = mouse.x - particle.x;
+          const dy = mouse.y - particle.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
           
-          // Direction-based attraction gets stronger with speed
-          const attractionStrength = (0.003 + speedBoost * 0.001) * proximityForce;
-          particle.vx += (dx / dist) * attractionStrength;
-          particle.vy += (dy / dist) * attractionStrength;
-          
-          // Direct velocity transfer - water follows mouse movement
-          if (mouseSpeed > 2) {
-            const velocityTransfer = proximityForce * 0.15;
-            particle.vx += mouse.velocityX * velocityTransfer;
-            particle.vy += mouse.velocityY * velocityTransfer;
-          }
-          
-          // Extra dramatic upward pull when mouse moves fast above water
-          if (mouse.y < particle.y && mouseSpeed > 3) {
-            particle.vy -= proximityForce * speedBoost * 0.3;
-          }
-          
-          // Turbulence effect for fast mouse movement
-          if (mouseSpeed > 8) {
-            const turbulence = proximityForce * speedBoost * 0.02;
-            particle.vx += (Math.random() - 0.5) * turbulence;
-            particle.vy += (Math.random() - 0.5) * turbulence;
+          if (dist < 250 && dist > 0) {
+            const force = Math.pow((250 - dist) / 250, 2) * 0.8;
+            particle.vx += (dx / dist) * force;
+            particle.vy += (dy / dist) * force;
+            
+            // Strong upward pull when mouse is above
+            if (mouse.y < particle.y - 30) {
+              particle.vy -= force * 1.2;
+            }
           }
         }
         
@@ -136,19 +118,17 @@ export default function Home() {
           
           if (rippleDist < 300) {
             const rippleWave = Math.sin((rippleDist * 0.02) - (ripple.time * 8)) * ripple.intensity;
-            particle.vx += (rippleDx / rippleDist) * rippleWave * 0.3;
-            particle.vy += (rippleDy / rippleDist) * rippleWave * 0.3;
+            particle.vx += (rippleDx / rippleDist) * rippleWave * 0.4;
+            particle.vy += (rippleDy / rippleDist) * rippleWave * 0.4;
           }
         }
         
-        // Return to rest position (weaker when mouse is active)
-        const restoreStrength = mouseSpeed > 5 ? 0.008 : 0.02;
-        particle.vy += (restY - particle.y) * restoreStrength;
+        // Return to rest position
+        particle.vy += (restY - particle.y) * 0.02;
         
-        // Dynamic damping based on mouse activity
-        const dampingFactor = mouseSpeed > 3 ? 0.97 : 0.92;
-        particle.vx *= dampingFactor;
-        particle.vy *= dampingFactor;
+        // Apply velocity with damping
+        particle.vx *= 0.93;
+        particle.vy *= 0.93;
         particle.x += particle.vx;
         particle.y += particle.vy;
         
@@ -157,22 +137,16 @@ export default function Home() {
         if (particle.x > canvas.width) particle.x = 0;
         if (particle.y > canvas.height - 20) particle.y = canvas.height - 20;
         
-        // Reactive character selection based on mouse speed and particle activity
-        const particleSpeed = Math.abs(particle.vx) + Math.abs(particle.vy);
+        // Update character based on activity
+        const speed = Math.abs(particle.vx) + Math.abs(particle.vy);
         const heightFromBase = Math.max(0, particle.baseY - particle.y);
-        const nearMouse = dist < 150;
         
-        // Character changes dramatically with mouse speed
-        if (nearMouse && mouseSpeed > 10) {
-          particle.charIndex = 14 + Math.floor(Math.random() * 4); // Intense turbulence
-        } else if (nearMouse && mouseSpeed > 5) {
-          particle.charIndex = 10 + Math.floor(Math.random() * 4); // High activity
-        } else if (particleSpeed > 4 || heightFromBase > 40) {
-          particle.charIndex = 6 + Math.floor(Math.random() * 4); // Active waves  
-        } else if (particleSpeed > 1.5 || heightFromBase > 15) {
-          particle.charIndex = 3 + Math.floor(Math.random() * 3); // Medium waves
+        if (speed > 3 || heightFromBase > 40) {
+          particle.charIndex = 8 + Math.floor(Math.random() * 4);
+        } else if (speed > 1.5 || heightFromBase > 15) {
+          particle.charIndex = 4 + Math.floor(Math.random() * 4);
         } else {
-          particle.charIndex = Math.floor(Math.random() * 3); // Calm water
+          particle.charIndex = Math.floor(Math.random() * 4);
         }
       });
     };
@@ -199,39 +173,22 @@ export default function Home() {
       
 
       
-      // Render ASCII water with velocity-reactive colors
-      const mouse = mouseRef.current;
-      const mouseSpeed = Math.sqrt(mouse.velocityX * mouse.velocityX + mouse.velocityY * mouse.velocityY);
-      
+      // Render ASCII water with attraction-based colors
       particlesRef.current.forEach(particle => {
-        const particleSpeed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
         const distanceFromMouse = Math.sqrt(
-          (mouse.x - particle.x) ** 2 + (mouse.y - particle.y) ** 2
+          (mouseRef.current.x - particle.x) ** 2 + (mouseRef.current.y - particle.y) ** 2
         );
         
-        // Dynamic coloring based on mouse speed and proximity
-        const nearMouse = distanceFromMouse < 150;
-        const veryNear = distanceFromMouse < 80;
-        
-        if (veryNear && mouseSpeed > 8) {
-          // Intense mouse activity - bright white/cyan
-          ctx.fillStyle = `rgba(255, 255, 255, ${0.9 + Math.min(mouseSpeed * 0.01, 0.1)})`;
-        } else if (nearMouse && mouseSpeed > 4) {
-          // Fast mouse movement - electric cyan
-          const intensity = Math.min(mouseSpeed * 0.08, 1);
-          ctx.fillStyle = `rgba(0, 255, 255, ${0.7 + intensity * 0.3})`;
-        } else if (nearMouse && mouseSpeed > 1) {
-          // Medium mouse speed - bright cyan
-          ctx.fillStyle = `rgba(64, 224, 255, ${0.6 + mouseSpeed * 0.05})`;
-        } else if (particleSpeed > 4) {
-          // High particle activity - medium cyan
-          ctx.fillStyle = 'rgba(100, 200, 255, 0.8)';
-        } else if (particleSpeed > 1.5) {
-          // Medium activity - soft cyan
-          ctx.fillStyle = 'rgba(120, 180, 220, 0.7)';
+        // Color based on attraction and activity
+        if (attractOnRef.current && distanceFromMouse < 100) {
+          ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Bright cyan when attracted
+        } else if (speed > 3) {
+          ctx.fillStyle = 'rgba(64, 224, 255, 0.8)'; // Active water
+        } else if (speed > 1) {
+          ctx.fillStyle = 'rgba(100, 200, 255, 0.7)'; // Medium activity
         } else {
-          // Calm water - dim blue
-          ctx.fillStyle = 'rgba(100, 150, 200, 0.5)';
+          ctx.fillStyle = 'rgba(120, 180, 220, 0.6)'; // Calm water
         }
         
         // Render water character
@@ -248,19 +205,11 @@ export default function Home() {
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    // Enhanced mouse tracking with velocity calculation
+    // Simple mouse tracking
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      const mouse = mouseRef.current;
-      
-      mouse.prevX = mouse.x;
-      mouse.prevY = mouse.y;
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-      
-      // Calculate velocity
-      mouse.velocityX = mouse.x - mouse.prevX;
-      mouse.velocityY = mouse.y - mouse.prevY;
+      mouseRef.current.x = e.clientX - rect.left;
+      mouseRef.current.y = e.clientY - rect.top;
     };
 
     // Button click creates ripple effect
@@ -292,7 +241,10 @@ export default function Home() {
 
   const handleButtonHover = (isHovering: boolean) => {
     isMouseOverButtonRef.current = isHovering;
-    attractOnRef.current = !isHovering; // Disable attraction when hovering buttons
+  };
+
+  const handleZoneHover = (isHovering: boolean) => {
+    attractOnRef.current = isHovering;
   };
 
   const handleButtonClickWithRipple = (url: string, event: React.MouseEvent) => {
@@ -320,17 +272,50 @@ export default function Home() {
     }, 150);
   };
 
+  // Create grid of invisible trigger zones
+  const createTriggerZones = () => {
+    const zones = [];
+    const zoneSize = 100; // 100px x 100px zones
+    const rows = Math.ceil(window.innerHeight / zoneSize);
+    const cols = Math.ceil(window.innerWidth / zoneSize);
+    
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        zones.push(
+          <div
+            key={`zone-${row}-${col}`}
+            className="absolute pointer-events-auto"
+            style={{
+              left: col * zoneSize,
+              top: row * zoneSize,
+              width: zoneSize,
+              height: zoneSize,
+            }}
+            onMouseEnter={() => handleZoneHover(true)}
+            onMouseLeave={() => handleZoneHover(false)}
+          />
+        );
+      }
+    }
+    return zones;
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 font-mono">
       {/* ASCII Fluid Canvas Background */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 w-full h-full"
+        className="fixed inset-0 w-full h-full pointer-events-none"
       />
       
+      {/* Invisible trigger zones grid */}
+      <div className="fixed inset-0 pointer-events-none">
+        {createTriggerZones()}
+      </div>
+      
       {/* Main Content */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen">
-        <div className="flex space-x-16 px-8">
+      <div className="relative z-20 flex items-center justify-center min-h-screen pointer-events-none">
+        <div className="flex space-x-16 px-8 pointer-events-auto">
           {/* Instagram Button */}
           <button
             onMouseEnter={() => handleButtonHover(true)}
