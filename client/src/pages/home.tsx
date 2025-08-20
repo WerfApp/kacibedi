@@ -54,13 +54,13 @@ export default function Home() {
         for (let y = 0; y < poolRows; y++) {
           const baseY = canvas.height - POOL_HEIGHT + (y * PARTICLE_SIZE);
           particlesRef.current.push({
-            x: x * PARTICLE_SIZE,
-            y: baseY + Math.random() * 15 - 7.5,
+            x: x * PARTICLE_SIZE + PARTICLE_SIZE/2,
+            y: baseY + Math.random() * 10 - 5,
             baseY: baseY,
             vx: 0,
             vy: 0,
             char: FLUID_CHARS[Math.floor(Math.random() * 14)], // Avoid splash chars initially
-            intensity: Math.random() * 0.4 + 0.4,
+            intensity: Math.random() * 0.3 + 0.5,
             waveOffset: Math.random() * Math.PI * 2,
             isSplash: false,
             splashLife: 0,
@@ -96,17 +96,18 @@ export default function Home() {
       const mouseX = mouseRef.current.x;
       const mouseY = mouseRef.current.y;
       
-      // Track previous mouse-over-button state for crash detection
-      const wasOverButton = particlesRef.current.some(p => p.y < canvas.height - POOL_HEIGHT - 100);
+      // Process particles - remove expired splash particles first
+      particlesRef.current = particlesRef.current.filter(particle => {
+        if (particle.isSplash && particle.splashLife <= 0) {
+          return false; // Remove expired splash particles
+        }
+        return true;
+      });
       
       particlesRef.current.forEach((particle, index) => {
         // Handle splash particles differently
         if (particle.isSplash) {
           particle.splashLife--;
-          if (particle.splashLife <= 0) {
-            particlesRef.current.splice(index, 1);
-            return;
-          }
           
           // Gravity for splash particles
           particle.vy += 0.4;
@@ -265,20 +266,20 @@ export default function Home() {
         );
         
         const heightFromBottom = canvas.height - particle.y;
-        const heightFactor = heightFromBottom / (POOL_HEIGHT + MAX_RISE_HEIGHT);
+        const heightFactor = Math.min(1.0, heightFromBottom / (POOL_HEIGHT + MAX_RISE_HEIGHT));
         
-        let alpha = Math.max(0.3, particle.intensity);
+        let alpha = Math.max(0.4, particle.intensity);
         
         // Enhanced mouse proximity effect
         if (!isMouseOverButtonRef.current && distanceFromMouse < ATTRACTION_RADIUS) {
           const proximityFactor = (ATTRACTION_RADIUS - distanceFromMouse) / ATTRACTION_RADIUS;
-          alpha += proximityFactor * 0.7;
+          alpha += proximityFactor * 0.6;
         }
         
-        // Movement and height-based intensity
-        if (speed > 0.8) alpha += speed * 0.4;
+        // Movement-based intensity
+        if (speed > 0.8) alpha += speed * 0.3;
         
-        // Enhanced Hokusai-inspired fluid colors with height consideration
+        // Hokusai-inspired fluid colors with better visibility
         if (particle.y < canvas.height - POOL_HEIGHT - 100) {
           // High-rising particles - bright white/cyan
           if (speed > 3) {
@@ -296,24 +297,24 @@ export default function Home() {
           ctx.fillStyle = `rgba(165, 243, 252, ${Math.min(alpha, 0.8)})`;
         } else if (speed > 0.4) {
           // Slow movement - blue-cyan  
-          ctx.fillStyle = `rgba(103, 232, 249, ${Math.min(alpha, 0.7)})`;
-        } else if (heightFactor > 0.8) {
-          // Surface particles - light blue
-          ctx.fillStyle = `rgba(147, 197, 253, ${Math.min(alpha, 0.6)})`;
-        } else if (heightFactor > 0.4) {
-          // Mid-depth - darker blue
-          ctx.fillStyle = `rgba(96, 165, 250, ${Math.min(alpha, 0.5)})`;
+          ctx.fillStyle = `rgba(103, 232, 249, ${Math.min(alpha, 0.75)})`;
+        } else if (heightFactor > 0.7) {
+          // Surface particles - light blue with better visibility
+          ctx.fillStyle = `rgba(147, 197, 253, ${Math.min(alpha, 0.7)})`;
+        } else if (heightFactor > 0.3) {
+          // Mid-depth - darker blue but still visible
+          ctx.fillStyle = `rgba(96, 165, 250, ${Math.min(alpha, 0.6)})`;
         } else {
-          // Deep particles - dark blue-gray
-          ctx.fillStyle = `rgba(71, 85, 105, ${Math.min(alpha, 0.4)})`;
+          // Deep particles - ensure minimum visibility
+          ctx.fillStyle = `rgba(71, 85, 105, ${Math.min(alpha, 0.5)})`;
         }
         
         // Dynamic scaling based on height, depth and movement
-        let scale = 0.7 + (heightFactor * 0.5) + (speed * 0.15);
+        let scale = 0.8 + (heightFactor * 0.4) + (speed * 0.1);
         if (particle.y < canvas.height - POOL_HEIGHT - 50) {
-          scale += 0.3; // Larger when high above pool
+          scale += 0.2; // Larger when high above pool
         }
-        scale = Math.min(scale, 1.8); // Cap maximum size
+        scale = Math.min(scale, 1.5); // Cap maximum size
         
         ctx.save();
         ctx.scale(scale, scale);
@@ -355,6 +356,7 @@ export default function Home() {
 
     // Animation loop
     const animate = () => {
+      if (!canvas || !ctx) return;
       updateFluid();
       renderFluid();
       animationRef.current = requestAnimationFrame(animate);
