@@ -298,13 +298,30 @@ export default function Home() {
       />
       
       {/* Main Content */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen space-y-12">
+        {/* Header Text */}
+        <div className="text-center space-y-2">
+          <p className="text-xs font-mono text-slate-400 uppercase tracking-wider">
+            This site was made by
+          </p>
+          <h1 className="text-4xl font-mono text-slate-200 font-bold tracking-wide">
+            Kaci Bedi
+          </h1>
+          <blockquote className="max-w-2xl mx-auto mt-6 text-center">
+            <p className="text-lg font-mono text-slate-300 leading-relaxed">
+              "You are not a drop in the ocean. You are the entire ocean in a drop."
+            </p>
+            <cite className="block mt-2 text-sm font-mono text-slate-400">— Rumi</cite>
+          </blockquote>
+        </div>
+        
+        {/* Social Links */}
         <div className="flex space-x-16 px-8">
           {/* Instagram Button */}
           <button
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
-            onClick={(e) => handleButtonClickWithRipple('https://instagram.com/username', e)}
+            onClick={(e) => handleButtonClickWithRipple('https://instagram.com/kaciibedi', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
@@ -319,7 +336,7 @@ export default function Home() {
           <button
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
-            onClick={(e) => handleButtonClickWithRipple('https://youtube.com/channel/channelid', e)}
+            onClick={(e) => handleButtonClickWithRipple('https://youtube.com/@ytkaci', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
