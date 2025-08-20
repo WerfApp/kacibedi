@@ -1,46 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 
-interface SPHParticle {
+interface WaterParticle {
   x: number;
   y: number;
+  baseY: number;
   vx: number;
   vy: number;
-  m: number;
-  rho: number;
-  p: number;
-  fx: number;
-  fy: number;
   charIndex: number;
-  colorIndex: number;
+  intensity: number;
 }
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const isMouseOverButtonRef = useRef(false);
-  const particlesRef = useRef<SPHParticle[]>([]);
-  const gridRef = useRef<Map<string, number[]>>(new Map());
+  const particlesRef = useRef<WaterParticle[]>([]);
   const attractOnRef = useRef(true);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
 
-  // ASCII character palette for fluid mapping (keep existing art style)
-  const FLUID_CHARS = ['~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';', '▴', '▾', '◆', '◇'];
+  // Water characters from calm to intense
+  const WATER_CHARS = ['~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';', '▴', '▾', '◆', '◇'];
   
-  // SPH Constants (tunable)
-  const H = 18; // Smoothing length
-  const RHO0 = 8; // Rest density
-  const K = 0.9; // Equation-of-state stiffness
-  const MU = 0.15; // Viscosity
-  const G = 40; // Gravity
-  const CURSOR_G = 800; // Cursor attraction strength
-  const CURSOR_FMAX = 140; // Max cursor force
-  const CURSOR_EPS = 4; // Softening parameter
-  const VMAX = 450; // Max velocity clamp
-  const DAMPING = 0.3; // Boundary damping
-  
-  const PARTICLE_SIZE = 12;
-  const POOL_HEIGHT = 150;
+  const PARTICLE_SIZE = 14;
+  const POOL_HEIGHT = 160;
+  const ATTRACTION_RADIUS = 300;
+  const MAX_RISE_HEIGHT = 350;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -56,91 +41,37 @@ export default function Home() {
       initializeFluid();
     };
 
-    // Create ASCII sea/ocean effect
+    // Create water pool at bottom of screen
     const initializeFluid = () => {
       particlesRef.current = [];
       
-      // Create dense ASCII sea at bottom of screen
-      const cols = Math.floor(canvas.width / 8); // Closer spacing for sea effect
-      const rows = Math.floor(POOL_HEIGHT / 12); // Multiple rows for depth
+      // Dense water pool that sits at bottom
+      const spacing = 8;
+      const cols = Math.floor(canvas.width / spacing);
+      const rows = Math.floor(POOL_HEIGHT / (spacing * 0.7));
       
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const x = col * 8 + 4; // Regular grid spacing
-          const y = canvas.height - POOL_HEIGHT + row * 12; // Stack rows from bottom
+          const x = col * spacing + spacing/2;
+          const baseY = canvas.height - POOL_HEIGHT + row * (spacing * 0.7);
           
           particlesRef.current.push({
-            x: x + (Math.random() - 0.5) * 4,
-            y: y + (Math.random() - 0.5) * 4,
-            vx: (Math.random() - 0.5) * 2,
-            vy: (Math.random() - 0.5) * 1,
-            m: 1.0,
-            rho: RHO0,
-            p: 0,
-            fx: 0,
-            fy: 0,
-            charIndex: Math.floor(Math.random() * 6), // Use first 6 wave characters
-            colorIndex: 0
+            x: x + (Math.random() - 0.5) * 2,
+            y: baseY + (Math.random() - 0.5) * 2,
+            baseY: baseY,
+            vx: 0,
+            vy: 0,
+            charIndex: Math.floor(Math.random() * 6),
+            intensity: 0.5 + Math.random() * 0.3
           });
         }
       }
-      console.log(`Created ${particlesRef.current.length} particles for ASCII sea`);
+      console.log(`Created ${particlesRef.current.length} water particles`);
     };
 
-    // SPH Kernels
-    const poly6Kernel = (r: number) => {
-      if (r >= H) return 0;
-      const temp = H * H - r * r;
-      return (4 / (Math.PI * Math.pow(H, 8))) * Math.pow(temp, 3);
-    };
 
-    const spikyGradient = (r: number) => {
-      if (r >= H || r <= 0) return 0;
-      return (-30 / (Math.PI * Math.pow(H, 5))) * Math.pow(H - r, 2);
-    };
 
-    const viscosityLaplacian = (r: number) => {
-      if (r >= H) return 0;
-      return (40 / (Math.PI * Math.pow(H, 5))) * (H - r);
-    };
-
-    // Spatial hashing for neighbor search  
-    const buildSpatialHash = () => {
-      gridRef.current.clear();
-      
-      for (let i = 0; i < particlesRef.current.length; i++) {
-        const particle = particlesRef.current[i];
-        const gridX = Math.floor(particle.x / H);
-        const gridY = Math.floor(particle.y / H);
-        const key = `${gridX},${gridY}`;
-        
-        if (!gridRef.current.has(key)) {
-          gridRef.current.set(key, []);
-        }
-        gridRef.current.get(key)!.push(i);
-      }
-    };
-
-    // Get neighbors for particle
-    const getNeighbors = (particle: SPHParticle) => {
-      const neighbors: number[] = [];
-      const gridX = Math.floor(particle.x / H);
-      const gridY = Math.floor(particle.y / H);
-      
-      // Check 9 neighboring cells
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-          const key = `${gridX + dx},${gridY + dy}`;
-          const cell = gridRef.current.get(key);
-          if (cell) {
-            neighbors.push(...cell);
-          }
-        }
-      }
-      return neighbors;
-    };
-
-    // Simple wave simulation for ASCII sea
+    // Water pool simulation with cursor attraction
     const updateFluid = () => {
       timeRef.current += 0.016;
       const mouseX = mouseRef.current.x;
@@ -149,50 +80,68 @@ export default function Home() {
       for (let i = 0; i < particlesRef.current.length; i++) {
         const particle = particlesRef.current[i];
         
-        // Create wave motion with time and position
-        const waveBase = Math.sin(timeRef.current + particle.x * 0.01) * 3;
-        const waveSecondary = Math.sin(timeRef.current * 1.5 + particle.x * 0.008) * 2;
-        const baseY = canvas.height - POOL_HEIGHT + (particle.y - (canvas.height - POOL_HEIGHT));
+        // Gentle wave motion for sitting water
+        const waveMotion = Math.sin(timeRef.current * 2 + particle.x * 0.012) * 2;
+        const targetY = particle.baseY + waveMotion;
         
-        // Mouse attraction when enabled
+        // Strong cursor attraction - water rises toward mouse
         if (attractOnRef.current) {
           const dx = mouseX - particle.x;
           const dy = mouseY - particle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (distance < 200 && distance > 0) {
-            const force = (1 - distance / 200) * 0.8;
+          if (distance < ATTRACTION_RADIUS && distance > 0) {
+            const force = Math.pow(1 - distance / ATTRACTION_RADIUS, 2) * 5;
             particle.vx += (dx / distance) * force;
             particle.vy += (dy / distance) * force;
+            
+            // Extra upward force for dramatic rise
+            if (mouseY < particle.y) {
+              particle.vy -= force * 2;
+            }
           }
         }
         
-        // Natural wave motion
-        particle.vy += (baseY + waveBase + waveSecondary - particle.y) * 0.02;
-        particle.vx += (Math.random() - 0.5) * 0.1; // Small random movement
+        // Return to rest position (weaker when mouse is near)
+        const distanceToMouse = Math.sqrt((mouseX - particle.x) ** 2 + (mouseY - particle.y) ** 2);
+        const restoreStrength = distanceToMouse < ATTRACTION_RADIUS ? 0.01 : 0.03;
+        particle.vy += (targetY - particle.y) * restoreStrength;
         
         // Damping
-        particle.vx *= 0.95;
-        particle.vy *= 0.95;
+        particle.vx *= 0.92;
+        particle.vy *= 0.92;
         
         // Update position
         particle.x += particle.vx;
         particle.y += particle.vy;
         
-        // Keep particles in sea area
-        if (particle.x < 0) particle.x = canvas.width;
-        if (particle.x > canvas.width) particle.x = 0;
-        if (particle.y < canvas.height - POOL_HEIGHT) particle.y = canvas.height - POOL_HEIGHT;
-        if (particle.y > canvas.height - 20) particle.y = canvas.height - 20;
+        // Boundaries
+        if (particle.x < 0 || particle.x > canvas.width) {
+          particle.vx *= -0.3;
+          particle.x = Math.max(0, Math.min(canvas.width, particle.x));
+        }
+        if (particle.y > canvas.height - 10) {
+          particle.y = canvas.height - 10;
+          particle.vy *= -0.2;
+        }
         
-        // Update character based on wave motion
-        const waveIntensity = Math.abs(waveBase + waveSecondary);
-        if (waveIntensity > 4) {
-          particle.charIndex = 14 + Math.floor(Math.random() * 4); // Intense wave chars
-        } else if (waveIntensity > 2) {
-          particle.charIndex = 8 + Math.floor(Math.random() * 6); // Medium wave chars
+        // Limit maximum height
+        const maxHeight = canvas.height - POOL_HEIGHT - MAX_RISE_HEIGHT;
+        if (particle.y < maxHeight) {
+          particle.y = maxHeight;
+          particle.vy = Math.abs(particle.vy) * 0.3;
+        }
+        
+        // Update character based on activity
+        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const heightFromBase = Math.max(0, particle.baseY - particle.y);
+        
+        if (speed > 3 || heightFromBase > 50) {
+          particle.charIndex = Math.min(17, 12 + Math.floor(speed + heightFromBase / 20));
+        } else if (speed > 1 || heightFromBase > 20) {
+          particle.charIndex = 6 + Math.floor((speed + heightFromBase / 30) * 2);
         } else {
-          particle.charIndex = Math.floor(Math.random() * 8); // Calm wave chars
+          particle.charIndex = Math.floor(Math.random() * 6);
         }
       }
     };
@@ -241,8 +190,8 @@ export default function Home() {
           ctx.fillStyle = 'rgba(120, 180, 220, 0.6)';
         }
         
-        // Render sea character
-        const char = FLUID_CHARS[Math.max(0, Math.min(particle.charIndex, FLUID_CHARS.length - 1))];
+        // Render water character
+        const char = WATER_CHARS[Math.max(0, Math.min(particle.charIndex, WATER_CHARS.length - 1))];
         ctx.fillText(char, particle.x, particle.y);
       });
     };
