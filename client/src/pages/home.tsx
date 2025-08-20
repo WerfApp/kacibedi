@@ -139,7 +139,8 @@ export default function Home() {
 
     // SPH Physics simulation
     const updateFluid = () => {
-      const dt = Math.min(0.033, Math.max(0.016, timeRef.current * 0.016));
+      const dt = 0.016; // Fixed timestep for stability
+      timeRef.current += dt;
       const mouseX = mouseRef.current.x;
       const mouseY = mouseRef.current.y;
       
@@ -274,6 +275,12 @@ export default function Home() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
+      // Debug: Log particle count
+      if (timeRef.current % 60 === 0) {
+        console.log(`Particles: ${particlesRef.current.length}, First particle:`, 
+          particlesRef.current[0] ? {x: particlesRef.current[0].x, y: particlesRef.current[0].y, char: FLUID_CHARS[particlesRef.current[0].charIndex]} : 'none');
+      }
+      
 
       
       // Render SPH particles with proper character mapping
@@ -305,7 +312,7 @@ export default function Home() {
         }
         
         // Render the character from the palette
-        const char = FLUID_CHARS[particle.charIndex];
+        const char = FLUID_CHARS[Math.max(0, Math.min(particle.charIndex, FLUID_CHARS.length - 1))];
         ctx.fillText(char, particle.x, particle.y);
       });
     };
