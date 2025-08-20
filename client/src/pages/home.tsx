@@ -12,12 +12,13 @@ interface WaterParticle {
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mouseRef = useRef({ x: 0, y: 0 });
+  const mouseRef = useRef({ x: 0, y: 0, prevX: 0, prevY: 0, velocityX: 0, velocityY: 0 });
   const isMouseOverButtonRef = useRef(false);
   const particlesRef = useRef<WaterParticle[]>([]);
   const attractOnRef = useRef(true);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
+  const rippleRef = useRef({ active: false, x: 0, y: 0, intensity: 0, time: 0 });
 
   // Water characters from calm to intense
   const WATER_CHARS = ['~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';', '▴', '▾', '◆', '◇'];
@@ -71,39 +72,74 @@ export default function Home() {
 
 
 
-    // Simple, working water simulation
+    // Dynamic water simulation with mouse velocity and ripples
     const updateFluid = () => {
       timeRef.current += 0.016;
-      const mouseX = mouseRef.current.x;
-      const mouseY = mouseRef.current.y;
+      const mouse = mouseRef.current;
+      const ripple = rippleRef.current;
+      
+      // Update ripple effect
+      if (ripple.active) {
+        ripple.time += 0.016;
+        ripple.intensity *= 0.98; // Fade out
+        if (ripple.intensity < 0.1) {
+          ripple.active = false;
+        }
+      }
       
       particlesRef.current.forEach((particle, i) => {
-        // Calm ambient wave motion
-        const wave = Math.sin(timeRef.current + particle.x * 0.005) * 3;
+        // Base calm wave motion
+        const wave = Math.sin(timeRef.current * 0.8 + particle.x * 0.005) * 2;
         const restY = particle.baseY + wave;
         
-        // Mouse attraction
-        const dx = mouseX - particle.x;
-        const dy = mouseY - particle.y;
+        // Mouse velocity creates wake effect
+        const mouseSpeed = Math.sqrt(mouse.velocityX * mouse.velocityX + mouse.velocityY * mouse.velocityY);
+        const dx = mouse.x - particle.x;
+        const dy = mouse.y - particle.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if (dist < 200) {
-          const force = (200 - dist) / 200;
-          particle.vx += dx * force * 0.001;
-          particle.vy += dy * force * 0.002;
+        // Mouse attraction based on proximity and speed
+        if (dist < 250) {
+          const proximityForce = (250 - dist) / 250;
+          const speedMultiplier = Math.min(mouseSpeed * 0.1, 3); // Cap the effect
+          
+          // Basic attraction
+          particle.vx += dx * proximityForce * 0.001;
+          particle.vy += dy * proximityForce * 0.002;
+          
+          // Velocity-based wake effect
+          if (mouseSpeed > 5) {
+            const wakeForceX = mouse.velocityX * proximityForce * 0.05;
+            const wakeForceY = mouse.velocityY * proximityForce * 0.05;
+            particle.vx += wakeForceX;
+            particle.vy += wakeForceY;
+          }
           
           // Strong upward pull when mouse is above
-          if (mouseY < particle.y) {
-            particle.vy -= force * 0.8;
+          if (mouse.y < particle.y) {
+            particle.vy -= proximityForce * (0.5 + speedMultiplier * 0.2);
+          }
+        }
+        
+        // Ripple effect from button clicks
+        if (ripple.active) {
+          const rippleDx = ripple.x - particle.x;
+          const rippleDy = ripple.y - particle.y;
+          const rippleDist = Math.sqrt(rippleDx * rippleDx + rippleDy * rippleDy);
+          
+          if (rippleDist < 300) {
+            const rippleWave = Math.sin((rippleDist * 0.02) - (ripple.time * 8)) * ripple.intensity;
+            particle.vx += (rippleDx / rippleDist) * rippleWave * 0.3;
+            particle.vy += (rippleDy / rippleDist) * rippleWave * 0.3;
           }
         }
         
         // Return to rest position
-        particle.vy += (restY - particle.y) * 0.01;
+        particle.vy += (restY - particle.y) * 0.015;
         
         // Apply velocity with damping
-        particle.vx *= 0.95;
-        particle.vy *= 0.95;
+        particle.vx *= 0.94;
+        particle.vy *= 0.94;
         particle.x += particle.vx;
         particle.y += particle.vy;
         
@@ -112,12 +148,16 @@ export default function Home() {
         if (particle.x > canvas.width) particle.x = 0;
         if (particle.y > canvas.height - 20) particle.y = canvas.height - 20;
         
-        // Update character
+        // Dynamic character selection based on activity
         const speed = Math.abs(particle.vx) + Math.abs(particle.vy);
-        if (speed > 2) {
-          particle.charIndex = 6 + Math.floor(Math.random() * 6);
+        const heightFromBase = Math.max(0, particle.baseY - particle.y);
+        
+        if (speed > 3 || heightFromBase > 30) {
+          particle.charIndex = 8 + Math.floor(Math.random() * 6); // Active water
+        } else if (speed > 1 || heightFromBase > 10) {
+          particle.charIndex = 4 + Math.floor(Math.random() * 4); // Medium activity
         } else {
-          particle.charIndex = Math.floor(Math.random() * 6);
+          particle.charIndex = Math.floor(Math.random() * 4); // Calm water
         }
       });
     };
@@ -180,11 +220,30 @@ export default function Home() {
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    // Mouse tracking with proper canvas coordinates
+    // Enhanced mouse tracking with velocity calculation
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = e.clientX - rect.left;
-      mouseRef.current.y = e.clientY - rect.top;
+      const mouse = mouseRef.current;
+      
+      mouse.prevX = mouse.x;
+      mouse.prevY = mouse.y;
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+      
+      // Calculate velocity
+      mouse.velocityX = mouse.x - mouse.prevX;
+      mouse.velocityY = mouse.y - mouse.prevY;
+    };
+
+    // Button click creates ripple effect
+    const handleButtonClick = (buttonX: number, buttonY: number) => {
+      rippleRef.current = {
+        active: true,
+        x: buttonX,
+        y: buttonY,
+        intensity: 5,
+        time: 0
+      };
     };
 
     // Initialize
@@ -208,8 +267,29 @@ export default function Home() {
     attractOnRef.current = !isHovering; // Disable attraction when hovering buttons
   };
 
-  const openLink = (url: string) => {
-    window.open(url, '_blank');
+  const handleButtonClickWithRipple = (url: string, event: React.MouseEvent) => {
+    // Get button position for ripple effect
+    const rect = event.currentTarget.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const buttonCenterX = rect.left + rect.width / 2 - canvasRect.left;
+      const buttonCenterY = rect.top + rect.height / 2 - canvasRect.top;
+      
+      // Trigger ripple effect in water
+      rippleRef.current = {
+        active: true,
+        x: buttonCenterX,
+        y: buttonCenterY,
+        intensity: 8, // Strong ripple for button clicks
+        time: 0
+      };
+    }
+    
+    // Open link after short delay to show ripple effect
+    setTimeout(() => {
+      window.open(url, '_blank');
+    }, 150);
   };
 
   return (
@@ -227,10 +307,11 @@ export default function Home() {
           <button
             onMouseEnter={() => handleButtonHover(true)}
             onMouseLeave={() => handleButtonHover(false)}
-            onClick={() => openLink('https://instagram.com/username')}
+            onClick={(e) => handleButtonClickWithRipple('https://instagram.com/username', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
-                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
+                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                       active:scale-95 active:bg-slate-600/70 transform"
           >
             <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               instagram
@@ -241,10 +322,11 @@ export default function Home() {
           <button
             onMouseEnter={() => handleButtonHover(true)}
             onMouseLeave={() => handleButtonHover(false)}
-            onClick={() => openLink('https://youtube.com/channel/channelid')}
+            onClick={(e) => handleButtonClickWithRipple('https://youtube.com/channel/channelid', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
-                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
+                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                       active:scale-95 active:bg-slate-600/70 transform"
           >
             <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               youtube
@@ -255,10 +337,11 @@ export default function Home() {
           <button
             onMouseEnter={() => handleButtonHover(true)}
             onMouseLeave={() => handleButtonHover(false)}
-            onClick={() => openLink('https://mindmapper-project.com')}
+            onClick={(e) => handleButtonClickWithRipple('https://mindmapper-project.com', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
-                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
+                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                       active:scale-95 active:bg-slate-600/70 transform"
           >
             <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               mind mapper
