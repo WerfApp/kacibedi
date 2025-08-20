@@ -13,9 +13,8 @@ interface WaterParticle {
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
-  const isMouseOverButtonRef = useRef(false);
+  const hoveredButtonRef = useRef<{ x: number; y: number } | null>(null);
   const particlesRef = useRef<WaterParticle[]>([]);
-  const attractOnRef = useRef(false);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
   const rippleRef = useRef({ active: false, x: 0, y: 0, intensity: 0, time: 0 });
@@ -92,21 +91,24 @@ export default function Home() {
         const wave = Math.sin(timeRef.current * 0.6 + particle.x * 0.008) * 1.5;
         const restY = particle.baseY + wave;
         
-        // Mouse attraction when zones are active
-        if (attractOnRef.current) {
-          const dx = mouse.x - particle.x;
-          const dy = mouse.y - particle.y;
+        // Button-based water attraction
+        if (hoveredButtonRef.current) {
+          const buttonX = hoveredButtonRef.current.x;
+          const buttonY = hoveredButtonRef.current.y;
+          
+          // Distance from particle to button
+          const dx = buttonX - particle.x;
+          const dy = buttonY - particle.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           
-          if (dist < 250 && dist > 0) {
-            const force = Math.pow((250 - dist) / 250, 2) * 0.8;
+          // Strong attraction within 400px of hovered button
+          if (dist < 400) {
+            const force = Math.pow((400 - dist) / 400, 2) * 1.2;
             particle.vx += (dx / dist) * force;
             particle.vy += (dy / dist) * force;
             
-            // Strong upward pull when mouse is above
-            if (mouse.y < particle.y - 30) {
-              particle.vy -= force * 1.2;
-            }
+            // Extra upward pull - water rises dramatically toward button
+            particle.vy -= force * 2;
           }
         }
         
@@ -180,13 +182,20 @@ export default function Home() {
           (mouseRef.current.x - particle.x) ** 2 + (mouseRef.current.y - particle.y) ** 2
         );
         
-        // Color based on attraction and activity
-        if (attractOnRef.current && distanceFromMouse < 100) {
-          ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Bright cyan when attracted
-        } else if (speed > 3) {
-          ctx.fillStyle = 'rgba(64, 224, 255, 0.8)'; // Active water
-        } else if (speed > 1) {
-          ctx.fillStyle = 'rgba(100, 200, 255, 0.7)'; // Medium activity
+        // Color based on button proximity and activity
+        let distanceFromButton = Infinity;
+        if (hoveredButtonRef.current) {
+          distanceFromButton = Math.sqrt(
+            (hoveredButtonRef.current.x - particle.x) ** 2 + (hoveredButtonRef.current.y - particle.y) ** 2
+          );
+        }
+        
+        if (distanceFromButton < 150) {
+          ctx.fillStyle = 'rgba(0, 255, 255, 0.95)'; // Bright cyan near button
+        } else if (distanceFromButton < 300) {
+          ctx.fillStyle = 'rgba(64, 224, 255, 0.8)'; // Medium cyan
+        } else if (speed > 2) {
+          ctx.fillStyle = 'rgba(100, 200, 255, 0.7)'; // Active water
         } else {
           ctx.fillStyle = 'rgba(120, 180, 220, 0.6)'; // Calm water
         }
@@ -239,12 +248,20 @@ export default function Home() {
     };
   }, []);
 
-  const handleButtonHover = (isHovering: boolean) => {
-    isMouseOverButtonRef.current = isHovering;
-  };
-
-  const handleZoneHover = (isHovering: boolean) => {
-    attractOnRef.current = isHovering;
+  const handleButtonHover = (isHovering: boolean, event?: React.MouseEvent) => {
+    if (isHovering && event) {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const canvasRect = canvas.getBoundingClientRect();
+        hoveredButtonRef.current = {
+          x: rect.left + rect.width / 2 - canvasRect.left,
+          y: rect.top + rect.height / 2 - canvasRect.top
+        };
+      }
+    } else {
+      hoveredButtonRef.current = null;
+    }
   };
 
   const handleButtonClickWithRipple = (url: string, event: React.MouseEvent) => {
@@ -272,53 +289,20 @@ export default function Home() {
     }, 150);
   };
 
-  // Create grid of invisible trigger zones
-  const createTriggerZones = () => {
-    const zones = [];
-    const zoneSize = 100; // 100px x 100px zones
-    const rows = Math.ceil(window.innerHeight / zoneSize);
-    const cols = Math.ceil(window.innerWidth / zoneSize);
-    
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        zones.push(
-          <div
-            key={`zone-${row}-${col}`}
-            className="absolute pointer-events-auto"
-            style={{
-              left: col * zoneSize,
-              top: row * zoneSize,
-              width: zoneSize,
-              height: zoneSize,
-            }}
-            onMouseEnter={() => handleZoneHover(true)}
-            onMouseLeave={() => handleZoneHover(false)}
-          />
-        );
-      }
-    }
-    return zones;
-  };
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 font-mono">
       {/* ASCII Fluid Canvas Background */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 w-full h-full pointer-events-none"
+        className="fixed inset-0 w-full h-full"
       />
       
-      {/* Invisible trigger zones grid */}
-      <div className="fixed inset-0 pointer-events-none">
-        {createTriggerZones()}
-      </div>
-      
       {/* Main Content */}
-      <div className="relative z-20 flex items-center justify-center min-h-screen pointer-events-none">
-        <div className="flex space-x-16 px-8 pointer-events-auto">
+      <div className="relative z-10 flex items-center justify-center min-h-screen">
+        <div className="flex space-x-16 px-8">
           {/* Instagram Button */}
           <button
-            onMouseEnter={() => handleButtonHover(true)}
+            onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://instagram.com/username', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
@@ -333,7 +317,7 @@ export default function Home() {
 
           {/* YouTube Button */}
           <button
-            onMouseEnter={() => handleButtonHover(true)}
+            onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://youtube.com/channel/channelid', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
@@ -348,7 +332,7 @@ export default function Home() {
 
           {/* Mind Mapper Button */}
           <button
-            onMouseEnter={() => handleButtonHover(true)}
+            onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://mindmapper-project.com', e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
