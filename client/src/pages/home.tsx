@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'wouter';
 
 interface WaterParticle {
   x: number;
@@ -11,6 +12,7 @@ interface WaterParticle {
 }
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const hoveredButtonRef = useRef<{ x: number; y: number } | null>(null);
@@ -289,6 +291,31 @@ export default function Home() {
     }, 150);
   };
 
+  const handleMindMapperClick = (event: React.MouseEvent) => {
+    // Get button position for ripple effect
+    const rect = event.currentTarget.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const buttonCenterX = rect.left + rect.width / 2 - canvasRect.left;
+      const buttonCenterY = rect.top + rect.height / 2 - canvasRect.top;
+      
+      // Trigger ripple effect in water
+      rippleRef.current = {
+        active: true,
+        x: buttonCenterX,
+        y: buttonCenterY,
+        intensity: 8, // Strong ripple for button clicks
+        time: 0
+      };
+    }
+    
+    // Navigate to mind mapper page after ripple effect
+    setTimeout(() => {
+      setLocation('/mindmapper');
+    }, 150);
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 font-mono">
       {/* ASCII Fluid Canvas Background */}
@@ -351,7 +378,7 @@ export default function Home() {
           <button
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
-            onClick={(e) => handleButtonClickWithRipple('https://mindmapper-project.com', e)}
+            onClick={(e) => handleMindMapperClick(e)}
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
