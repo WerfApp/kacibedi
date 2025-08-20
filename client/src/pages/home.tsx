@@ -1,42 +1,46 @@
 import { useEffect, useRef, useState } from 'react';
 
-interface FluidParticle {
+interface SPHParticle {
   x: number;
   y: number;
-  baseY: number;
   vx: number;
   vy: number;
-  char: string;
-  intensity: number;
-  waveOffset: number;
-  isSplash: boolean;
-  splashLife: number;
-  mass: number;
+  m: number;
+  rho: number;
+  p: number;
+  fx: number;
+  fy: number;
+  charIndex: number;
+  colorIndex: number;
 }
 
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const isMouseOverButtonRef = useRef(false);
-  const particlesRef = useRef<FluidParticle[]>([]);
+  const particlesRef = useRef<SPHParticle[]>([]);
+  const gridRef = useRef<Map<string, number[]>>(new Map());
+  const attractOnRef = useRef(true);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
 
-  // Enhanced ASCII characters for more interesting fluid simulation
-  const FLUID_CHARS = [
-    // Base fluid characters
-    '~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';',
-    // Wave and flow characters  
-    '▴', '▾', '◆', '◇', '▲', '▼', '●', '○', '◉', '◎', '⦿', '⊙',
-    // Intense motion characters
-    '※', '⚡', '✦', '✧', '⋆', '★', '☆', '⭐', '✨', '💫',
-    // Crash/splash characters
-    '💥', '💦', '🌊', '🔥', '⚠', '‼', '❗', '⁂', '※', '⌘'
-  ];
+  // ASCII character palette for fluid mapping (keep existing art style)
+  const FLUID_CHARS = ['~', '≈', '∼', '⌐', '¬', '∩', '∪', '°', '·', '`', ',', '.', ':', ';', '▴', '▾', '◆', '◇'];
+  
+  // SPH Constants (tunable)
+  const H = 18; // Smoothing length
+  const RHO0 = 8; // Rest density
+  const K = 0.9; // Equation-of-state stiffness
+  const MU = 0.15; // Viscosity
+  const G = 40; // Gravity
+  const CURSOR_G = 800; // Cursor attraction strength
+  const CURSOR_FMAX = 140; // Max cursor force
+  const CURSOR_EPS = 4; // Softening parameter
+  const VMAX = 450; // Max velocity clamp
+  const DAMPING = 0.3; // Boundary damping
+  
   const PARTICLE_SIZE = 12;
-  const POOL_HEIGHT = 150; // Taller pool for better density
-  const ATTRACTION_RADIUS = 280;
-  const MAX_RISE_HEIGHT = 400;
+  const POOL_HEIGHT = 150;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -52,212 +56,203 @@ export default function Home() {
       initializeFluid();
     };
 
-    // Initialize fluid pool
+    // Initialize SPH fluid particles
     const initializeFluid = () => {
-      const cols = Math.floor(canvas.width / (PARTICLE_SIZE * 0.8)); // Denser packing
-      const poolRows = Math.floor(POOL_HEIGHT / (PARTICLE_SIZE * 0.8));
+      const numParticles = 1800; // Target particle count for good performance
+      const fluidWidth = canvas.width * 0.8;
+      const fluidHeight = POOL_HEIGHT;
       
       particlesRef.current = [];
       
-      for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < poolRows; y++) {
-          const baseY = canvas.height - POOL_HEIGHT + (y * PARTICLE_SIZE * 0.8);
-          particlesRef.current.push({
-            x: x * PARTICLE_SIZE * 0.8 + PARTICLE_SIZE/2,
-            y: baseY + Math.random() * 6 - 3,
-            baseY: baseY,
-            vx: 0,
-            vy: 0,
-            char: FLUID_CHARS[Math.floor(Math.random() * 14)], // Start with basic characters
-            intensity: Math.random() * 0.4 + 0.6,
-            waveOffset: Math.random() * Math.PI * 2,
-            isSplash: false,
-            splashLife: 0,
-            mass: Math.random() * 0.2 + 0.8
-          });
-        }
-      }
-    };
-
-    // Create splash particles
-    const createSplash = (x: number, y: number, intensity: number) => {
-      const splashCount = Math.floor(intensity * 8 + 4);
-      for (let i = 0; i < splashCount; i++) {
+      for (let i = 0; i < numParticles; i++) {
+        const x = (fluidWidth / Math.sqrt(numParticles)) * (i % Math.floor(Math.sqrt(numParticles))) + (canvas.width - fluidWidth) / 2;
+        const y = canvas.height - fluidHeight + (fluidHeight / Math.sqrt(numParticles)) * Math.floor(i / Math.sqrt(numParticles));
+        
         particlesRef.current.push({
-          x: x + (Math.random() - 0.5) * 30,
-          y: y,
-          baseY: canvas.height - POOL_HEIGHT + Math.random() * POOL_HEIGHT,
-          vx: (Math.random() - 0.5) * 8,
-          vy: -Math.random() * 6 - 2,
-          char: FLUID_CHARS[14 + Math.floor(Math.random() * 4)], // Use splash chars
-          intensity: Math.random() * 0.8 + 0.4,
-          waveOffset: Math.random() * Math.PI * 2,
-          isSplash: true,
-          splashLife: 60 + Math.random() * 40,
-          mass: 0.3 + Math.random() * 0.2
+          x: x + (Math.random() - 0.5) * H * 0.5,
+          y: y + (Math.random() - 0.5) * H * 0.5,
+          vx: 0,
+          vy: 0,
+          m: 1.0,
+          rho: RHO0,
+          p: 0,
+          fx: 0,
+          fy: 0,
+          charIndex: Math.floor(Math.random() * FLUID_CHARS.length),
+          colorIndex: 0
         });
       }
     };
 
-    // Fluid physics simulation  
+    // SPH Kernels
+    const poly6Kernel = (r: number) => {
+      if (r >= H) return 0;
+      const temp = H * H - r * r;
+      return (4 / (Math.PI * Math.pow(H, 8))) * Math.pow(temp, 3);
+    };
+
+    const spikyGradient = (r: number) => {
+      if (r >= H || r <= 0) return 0;
+      return (-30 / (Math.PI * Math.pow(H, 5))) * Math.pow(H - r, 2);
+    };
+
+    const viscosityLaplacian = (r: number) => {
+      if (r >= H) return 0;
+      return (40 / (Math.PI * Math.pow(H, 5))) * (H - r);
+    };
+
+    // Spatial hashing for neighbor search  
+    const buildSpatialHash = () => {
+      gridRef.current.clear();
+      
+      for (let i = 0; i < particlesRef.current.length; i++) {
+        const particle = particlesRef.current[i];
+        const gridX = Math.floor(particle.x / H);
+        const gridY = Math.floor(particle.y / H);
+        const key = `${gridX},${gridY}`;
+        
+        if (!gridRef.current.has(key)) {
+          gridRef.current.set(key, []);
+        }
+        gridRef.current.get(key)!.push(i);
+      }
+    };
+
+    // Get neighbors for particle
+    const getNeighbors = (particle: SPHParticle) => {
+      const neighbors: number[] = [];
+      const gridX = Math.floor(particle.x / H);
+      const gridY = Math.floor(particle.y / H);
+      
+      // Check 9 neighboring cells
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const key = `${gridX + dx},${gridY + dy}`;
+          const cell = gridRef.current.get(key);
+          if (cell) {
+            neighbors.push(...cell);
+          }
+        }
+      }
+      return neighbors;
+    };
+
+    // SPH Physics simulation
     const updateFluid = () => {
-      timeRef.current += 0.016;
+      const dt = Math.min(0.033, Math.max(0.016, timeRef.current * 0.016));
       const mouseX = mouseRef.current.x;
       const mouseY = mouseRef.current.y;
       
-      // Update all particles without removing during iteration
-      for (let i = particlesRef.current.length - 1; i >= 0; i--) {
+      // Build spatial hash
+      buildSpatialHash();
+      
+      // Density pass
+      for (let i = 0; i < particlesRef.current.length; i++) {
         const particle = particlesRef.current[i];
+        const neighbors = getNeighbors(particle);
         
-        // Remove expired splash particles
-        if (particle.isSplash && particle.splashLife <= 0) {
-          particlesRef.current.splice(i, 1);
-          continue;
+        particle.rho = 0;
+        for (const j of neighbors) {
+          const neighbor = particlesRef.current[j];
+          const dx = particle.x - neighbor.x;
+          const dy = particle.y - neighbor.y;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          particle.rho += neighbor.m * poly6Kernel(r);
         }
         
-        // Handle splash particles differently
-        if (particle.isSplash) {
-          particle.splashLife--;
+        // Pressure calculation
+        particle.p = K * Math.max(particle.rho - RHO0, 0);
+      }
+      
+      // Forces pass
+      for (let i = 0; i < particlesRef.current.length; i++) {
+        const particle = particlesRef.current[i];
+        const neighbors = getNeighbors(particle);
+        
+        particle.fx = 0;
+        particle.fy = G * particle.m; // Gravity
+        
+        for (const j of neighbors) {
+          if (i === j) continue;
           
-          // Gravity for splash particles
-          particle.vy += 0.4;
-          particle.x += particle.vx;
-          particle.y += particle.vy;
+          const neighbor = particlesRef.current[j];
+          const dx = particle.x - neighbor.x;
+          const dy = particle.y - neighbor.y;
+          const r = Math.sqrt(dx * dx + dy * dy);
           
-          // Bounce off ground
-          if (particle.y > canvas.height - 15) {
-            particle.y = canvas.height - 15;
-            particle.vy *= -0.4;
-            particle.vx *= 0.8;
+          if (r > 0) {
+            // Pressure force
+            const pressureForce = -neighbor.m * (particle.p + neighbor.p) / (2 * neighbor.rho) * spikyGradient(r);
+            particle.fx += pressureForce * (dx / r);
+            particle.fy += pressureForce * (dy / r);
+            
+            // Viscosity force
+            const viscForce = MU * neighbor.m * viscosityLaplacian(r) / neighbor.rho;
+            particle.fx += viscForce * (neighbor.vx - particle.vx);
+            particle.fy += viscForce * (neighbor.vy - particle.vy);
           }
-          
-          // Fade and slow down
-          particle.vx *= 0.98;
-          particle.intensity *= 0.995;
-          continue;
         }
         
-        // Base wave motion for regular particles
-        const waveInfluence = Math.sin(timeRef.current * 1.5 + particle.waveOffset + particle.x * 0.008) * 6;
-        const targetY = particle.baseY + waveInfluence;
-        
-        if (!isMouseOverButtonRef.current) {
-          // Powerful cursor attraction with realistic physics
+        // Cursor attraction (only when enabled)
+        if (attractOnRef.current) {
           const dx = mouseX - particle.x;
           const dy = mouseY - particle.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+          const d = Math.sqrt(dx * dx + dy * dy);
           
-          if (distance < ATTRACTION_RADIUS && distance > 0) {
-            const normalizedDistance = distance / ATTRACTION_RADIUS;
-            const attractionForce = (1 - normalizedDistance) ** 2; // Strong attraction
-            
-            // Direct attraction toward mouse
-            const forceX = (dx / distance) * attractionForce * 4.0;
-            const forceY = (dy / distance) * attractionForce * 4.0;
-            
-            particle.vx += forceX;
-            particle.vy += forceY;
-            
-            // Extra upward boost when mouse is above
-            if (mouseY < particle.y && distance < 150) {
-              const upwardBoost = -attractionForce * 5.0;
-              particle.vy += upwardBoost;
-            }
-            
-            // Change to more dramatic characters when attracted
-            if (distance < 80) {
-              const charIndex = Math.min(FLUID_CHARS.length - 1, 24 + Math.floor(attractionForce * 16));
-              particle.char = FLUID_CHARS[charIndex];
-            }
+          if (d > 1) {
+            const force = Math.min(CURSOR_G / (d * d + CURSOR_EPS), CURSOR_FMAX) * particle.m;
+            particle.fx += force * (dx / d);
+            particle.fy += force * (dy / d);
           }
-        } else {
-          // Button hover - crash and flow effect
-          if (particle.y < canvas.height - POOL_HEIGHT) {
-            // Strong gravity for dramatic crash
-            particle.vy += 1.8;
-            
-            // Spread horizontally when crashing
-            const crashForce = Math.random() - 0.5;
-            particle.vx += crashForce * 0.8;
-            
-            // Create splash on impact
-            if (particle.vy > 3.0 && particle.y > canvas.height - POOL_HEIGHT - 30) {
-              createSplash(particle.x, particle.y, Math.abs(particle.vy) * 0.5);
-              // Change to crash characters
-              particle.char = FLUID_CHARS[36 + Math.floor(Math.random() * 4)]; // Crash chars
-            }
-          } else {
-            particle.vy += 0.5; // Gravity in pool
-          }
-        }
-        
-        // Restore to base position (weaker when mouse is near)
-        const restoreStrength = isMouseOverButtonRef.current ? 0.08 : 0.03;
-        const restoreForceY = (targetY - particle.y) * restoreStrength;
-        particle.vy += restoreForceY;
-        
-        // Horizontal restoration
-        const homeX = Math.round(particle.x / PARTICLE_SIZE) * PARTICLE_SIZE;
-        const restoreForceX = (homeX - particle.x) * 0.01;
-        particle.vx += restoreForceX;
-        
-        // Mass-based damping
-        const dampingFactor = 0.88 + particle.mass * 0.05;
-        particle.vx *= dampingFactor;
-        particle.vy *= dampingFactor;
-        
-        // Update position
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        
-        // Boundary collisions with bounce
-        if (particle.y > canvas.height - 8) {
-          particle.y = canvas.height - 8;
-          particle.vy *= -0.4;
-          
-          // Create small splash on hard impact
-          if (Math.abs(particle.vy) > 2) {
-            createSplash(particle.x, particle.y, Math.abs(particle.vy) * 0.2);
-          }
-        }
-        
-        // Side boundaries with bounce
-        if (particle.x < 0 || particle.x > canvas.width) {
-          particle.vx *= -0.6;
-          particle.x = Math.max(0, Math.min(canvas.width, particle.x));
-        }
-        
-        // Upper boundary - allow higher rising
-        const maxHeight = canvas.height - POOL_HEIGHT - MAX_RISE_HEIGHT;
-        if (particle.y < maxHeight) {
-          particle.y = maxHeight;
-          particle.vy = Math.abs(particle.vy) * 0.3; // Bounce down
-        }
-        
-        // Dynamic character selection based on behavior
-        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        const heightFactor = (canvas.height - particle.y) / (POOL_HEIGHT + MAX_RISE_HEIGHT);
-        
-        if (speed > 2.5) {
-          particle.char = FLUID_CHARS[Math.min(17, 10 + Math.floor(speed))];
-        } else if (speed > 1.2) {
-          particle.char = FLUID_CHARS[6 + Math.floor(speed * 2)];
-        } else if (heightFactor > 0.8) {
-          particle.char = FLUID_CHARS[Math.floor(Math.random() * 8)];
-        } else if (heightFactor > 0.4) {
-          particle.char = FLUID_CHARS[Math.floor(Math.random() * 6)];
-        } else {
-          particle.char = FLUID_CHARS[Math.floor(Math.random() * 4)];
         }
       }
       
-      // Remove excess splash particles for performance
-      const maxSplashParticles = 200;
-      const splashCount = particlesRef.current.filter(p => p.isSplash).length;
-      if (splashCount > maxSplashParticles) {
-        particlesRef.current = particlesRef.current.filter((p, i) => 
-          !p.isSplash || i < maxSplashParticles || p.splashLife > 30
-        );
+      // Integration
+      for (let i = 0; i < particlesRef.current.length; i++) {
+        const particle = particlesRef.current[i];
+        
+        // Semi-implicit Euler
+        const ax = particle.fx / particle.rho;
+        const ay = particle.fy / particle.rho;
+        
+        particle.vx += ax * dt;
+        particle.vy += ay * dt;
+        
+        // Clamp velocities
+        const v = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        if (v > VMAX) {
+          particle.vx = (particle.vx / v) * VMAX;
+          particle.vy = (particle.vy / v) * VMAX;
+        }
+        
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        
+        // Boundary conditions with reflection
+        if (particle.x < 0) {
+          particle.x = 0;
+          particle.vx *= -DAMPING;
+        }
+        if (particle.x > canvas.width) {
+          particle.x = canvas.width;
+          particle.vx *= -DAMPING;
+        }
+        if (particle.y < 0) {
+          particle.y = 0;
+          particle.vy *= -DAMPING;
+        }
+        if (particle.y > canvas.height) {
+          particle.y = canvas.height;
+          particle.vy *= -DAMPING;
+        }
+        
+        // Update character and color based on speed/density
+        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const densityFactor = Math.min(1.0, particle.rho / (RHO0 * 2));
+        
+        particle.charIndex = Math.floor((speed / 50 + densityFactor) * FLUID_CHARS.length * 0.5);
+        particle.charIndex = Math.min(particle.charIndex, FLUID_CHARS.length - 1);
+        particle.colorIndex = Math.floor(speed / 100);
       }
     };
 
@@ -281,31 +276,27 @@ export default function Home() {
       
 
       
-      // Batch render by opacity for performance
-      const regularParticles = particlesRef.current.filter(p => !p.isSplash);
-      const splashParticles = particlesRef.current.filter(p => p.isSplash);
-      
-      // Render regular fluid particles with dynamic colors
-      regularParticles.forEach(particle => {
+      // Render SPH particles with proper character mapping
+      particlesRef.current.forEach(particle => {
         const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
         const distanceFromMouse = Math.sqrt(
           (mouseRef.current.x - particle.x) ** 2 + (mouseRef.current.y - particle.y) ** 2
         );
         
-        // Dynamic coloring based on movement and attraction
-        if (distanceFromMouse < 100 && !isMouseOverButtonRef.current) {
-          // Close to mouse - bright energetic colors
-          if (speed > 3) {
+        // Dynamic coloring based on movement and density
+        if (distanceFromMouse < 100 && attractOnRef.current) {
+          // Close to mouse and attraction enabled - bright colors
+          if (speed > 50) {
             ctx.fillStyle = 'rgba(255, 255, 255, 1.0)'; // White for high speed
-          } else if (speed > 2) {
+          } else if (speed > 30) {
             ctx.fillStyle = 'rgba(255, 215, 0, 0.9)'; // Gold for fast movement
           } else {
             ctx.fillStyle = 'rgba(0, 255, 255, 0.9)'; // Cyan for attraction
           }
-        } else if (speed > 2.5) {
+        } else if (speed > 40) {
           // Fast movement - bright cyan
           ctx.fillStyle = 'rgba(64, 224, 255, 0.8)';
-        } else if (speed > 1.0) {
+        } else if (speed > 20) {
           // Medium movement - medium cyan
           ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
         } else {
@@ -313,37 +304,9 @@ export default function Home() {
           ctx.fillStyle = 'rgba(120, 180, 220, 0.6)';
         }
         
-        // Render the character
-        ctx.fillText(particle.char, particle.x, particle.y);
-      });
-      
-      // Render splash particles with dramatic effects
-      splashParticles.forEach(particle => {
-        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-        const lifeFactor = particle.splashLife / 100;
-        
-        // Bright, attention-grabbing colors for splash effects
-        if (speed > 3) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 1.0)'; // Bright white for high energy
-        } else if (speed > 2) {
-          ctx.fillStyle = 'rgba(255, 100, 100, 0.9)'; // Red for impact
-        } else if (speed > 1) {
-          ctx.fillStyle = 'rgba(255, 150, 0, 0.8)'; // Orange for medium splash
-        } else {
-          ctx.fillStyle = 'rgba(100, 255, 255, 0.7)'; // Cyan for gentle droplets
-        }
-        
-        // Larger scaling for splash visibility
-        const scale = 1.2 + speed * 0.3 + lifeFactor * 0.5;
-        
-        ctx.save();
-        ctx.scale(scale, scale);
-        ctx.fillText(
-          particle.char,
-          particle.x / scale,
-          particle.y / scale
-        );
-        ctx.restore();
+        // Render the character from the palette
+        const char = FLUID_CHARS[particle.charIndex];
+        ctx.fillText(char, particle.x, particle.y);
       });
     };
 
@@ -380,6 +343,7 @@ export default function Home() {
 
   const handleButtonHover = (isHovering: boolean) => {
     isMouseOverButtonRef.current = isHovering;
+    attractOnRef.current = !isHovering; // Disable attraction when hovering buttons
   };
 
   const openLink = (url: string) => {

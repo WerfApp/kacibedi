@@ -1,0 +1,91 @@
+You are editing an existing ASCII “fluid” banner at the bottom of the page that currently renders characters and 3 buttons: “instagram”, “youtube”, “mind mapper”.
+Goal: make the characters behave like an actual 2-D SPH-style fluid that is gravitationally attracted to the cursor, with that attraction disabled while the cursor is hovering any of the three buttons. Keep the current art style, character palette, colors, fonts, sizes, and button styling exactly as they are.
+Constraints
+Do not change HTML/CSS art direction, font, or character palette. Only add JS and minimal CSS variables if needed.
+Keep performance smooth at 60 fps with ~1500–2500 particles.
+No third-party libs.
+Files to touch
+script.js (main logic)
+styles.css (only if you must add a single class for “hovering-buttons”)
+Do not modify the structure or text of the buttons.
+Implementation plan
+Canvas/ASCII grid access
+Use the existing ASCII grid or offscreen canvas the banner already uses. If none, create an offscreen 2D canvas sized to the banner, but render back to characters by sampling velocities/densities into grid cells and mapping to the existing character set.
+Maintain the current character palette and color mapping.
+Particle data structure
+Create particles = new Array(N) with objects { x, y, vx, vy, m, rho, p, charIndex, colorIndex }.
+Initialize uniformly across the fluid strip at the bottom, with small jitter. m = 1.
+Bounds are the banner rectangle; reflect with damping on collisions.
+Neighbor search (uniform grid)
+Implement spatial hashing: grid cell size h (smoothing length).
+Build hash -> indices each frame for O(n) neighbor queries.
+SPH equations (stable but simple)
+Constants:
+h = 18 px
+rho0 = 8 (rest density, arbitrary units)
+k = 0.9 (equation-of-state stiffness)
+mu = 0.15 (viscosity)
+g = 40 px/s² downward
+dt = clamp(frameDelta, 0.016, 0.033)
+Cursor attraction: G = 800, Fmax = 140, eps = 4
+Kernels (2D):
+Poly6: W(r) = 4/(π h^8) * (h^2 - r^2)^3 for 0 ≤ r < h, else 0.
+Spiky gradient: ∇W(r) = -30/(π h^5) * (h - r)^2 * r̂ for 0 < r < h, else 0.
+Viscosity laplacian: ∇²W(r) = 40/(π h^5) * (h - r) for 0 ≤ r < h, else 0.
+Density pass:
+For each particle i, rho_i = Σ_j m * W(|r_i - r_j|).
+Pressure: p_i = k * max(rho_i - rho0, 0).
+Forces pass:
+Pressure force on i: F_p = - Σ_j m * (p_i + p_j)/(2 * ρ_j) * ∇W(r_ij).
+Viscosity force: F_v = mu * Σ_j m * (v_j - v_i)/ρ_j * ∇²W(r_ij).
+Gravity: F_g = (0, m * g).
+Cursor attraction (toggleable):
+Maintain let attractOn = true;
+Compute r = cursor - r_i, d = sqrt(r.x^2 + r.y^2).
+If attractOn and d > 1:
+F_c = clamp(G / (d*d + eps), 0, Fmax) * r̂ * m.
+Add F_c to forces.
+Total acceleration a_i = (F_p + F_v + F_g + F_c)/ρ_i.
+Integrate (semi-implicit Euler):
+v_i += a_i * dt
+x_i += v_i * dt
+Clamp velocities with vmax ~ 450 px/s to keep stability.
+Button hover to disable attraction
+Add event listeners on the three buttons: on mouseenter set attractOn = false; on mouseleave set attractOn = true.
+Also set attractOn = false while the mouse is inside each button’s bounding rect even if fast-moving; do a per-frame rect check to avoid flicker.
+Mouse input
+Track cursor = {x, y} in banner coordinates with mousemove.
+If cursor is outside the banner, do not apply F_c.
+Rendering to ASCII (preserve art style)
+Convert particle field to grid cells that match the existing ASCII layout.
+For each cell, accumulate either speed magnitude or density and map to the existing character ramp and color ramp already in use. Do not introduce new characters or colors.
+Keep the existing “splash/crash” look when density spikes; simply let SPH produce those spikes naturally—no extra particle effects.
+Keep background gradient and button styles untouched.
+Boundaries & damping
+Reflect on walls with coefficient 0.3.
+If x < 0 || x > width or y < 0 || y > height: clamp to edge and invert component of velocity with damping.
+Main loop
+requestAnimationFrame(tick):
+Build spatial hash
+Density pass → pressure pass → forces pass → integrate
+Resolve boundaries
+Render ASCII grid
+Keep frame time stable; if sim stalls, sub-step with while (accumulated > dtMax) step(dtSub).
+Acceptance tests
+Characters flow like a cohesive fluid pool at the bottom, settle under gravity, and slosh realistically when the mouse moves.
+When the cursor approaches, the fluid is pulled toward it; when the cursor hovers a button, the fluid ignores the cursor immediately and continues natural fluid motion.
+No change to fonts, button look, or character palette.
+60 fps on a modern laptop with 1900+ particles.
+Hooks to add (exact)
+// global
+let attractOn = true;
+const buttons = Array.from(document.querySelectorAll('button, .btn, [data-nav-button]'));
+
+buttons.forEach(b => {
+  b.addEventListener('mouseenter', () => { attractOn = false; });
+  b.addEventListener('mouseleave', () => { attractOn = true; });
+});
+Notes
+Favor clarity and stability over micro-optimizations.
+Keep all constants at the top of script.js so I can tune rho0, k, mu, G, Fmax, h.
+Implement exactly as above so the motion is physically grounded SPH, not a cheesy sprite animation, and the visual style remains identical.
