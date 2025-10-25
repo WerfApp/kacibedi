@@ -342,19 +342,19 @@ export default function Home() {
         </div>
         
         {/* Social Links */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 md:gap-16 w-full max-w-md sm:max-w-none px-4 sm:px-8">
+        <div className="flex gap-4 sm:gap-8 md:gap-16 px-4 sm:px-8">
           {/* Instagram Button */}
           <button
             data-testid="button-instagram"
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://instagram.com/kaciibedi', e)}
-            className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
+            className="group relative px-4 sm:px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform w-full sm:w-auto text-center"
+                       active:scale-95 active:bg-slate-600/70 transform"
           >
-            <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
+            <span className="text-xs sm:text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               instagram
             </span>
           </button>
@@ -365,12 +365,12 @@ export default function Home() {
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={handlePortfolioClick}
-            className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
+            className="group relative px-4 sm:px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform w-full sm:w-auto text-center"
+                       active:scale-95 active:bg-slate-600/70 transform"
           >
-            <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
+            <span className="text-xs sm:text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               portfolio
             </span>
           </button>
@@ -381,12 +381,12 @@ export default function Home() {
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://youtube.com/@ytkaci', e)}
-            className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
+            className="group relative px-4 sm:px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform w-full sm:w-auto text-center"
+                       active:scale-95 active:bg-slate-600/70 transform"
           >
-            <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
+            <span className="text-xs sm:text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               youtube
             </span>
           </button>
