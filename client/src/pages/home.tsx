@@ -404,57 +404,159 @@ export default function Home() {
           `}</style>
           
           <div className="flex space-x-32 px-16 py-8 min-w-full portfolio-timeline animate-fadeIn">
-            {/* Timeline Item 1 */}
+            {/* Timeline Item 1 - BSc Physics */}
             <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
-                  2024
+                  2021–2025
                 </div>
                 <h3 className="text-2xl font-mono text-slate-200 font-bold">
-                  Mind Mapper
+                  BSc Physics
+                </h3>
+                <h4 className="text-sm font-mono text-slate-300">
+                  King's College London
+                </h4>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  Moved to London at 18. Engaged deeply with the AI community at KCL, completing two advanced modules from Computer Science. Developed expertise in scientific programming, data visualization, and machine learning. Dissertation: Machine Learning with Quantum Computers — applied quantum mechanics to financial fraud detection.
+                </p>
+              </div>
+            </div>
+
+            {/* Timeline Item 2 - Vizent */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  2023
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Vizent Python Library Testing
                 </h3>
                 <p className="text-sm font-mono text-slate-300 leading-relaxed">
-                  An interactive mind mapping application built with React and TypeScript. Features real-time collaboration and intuitive node-based interface.
+                  Tested and validated the Vizent library for entropy and complexity visualization. Supported analytical projects for UK National Grid and Transport for London, ensuring precision in system complexity assessment.
                 </p>
                 <a 
-                  href="https://mind-mapper.replit.app" 
+                  href="https://pypi.org/project/vizent" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-block text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
-                  data-testid="link-mindmapper"
+                  data-testid="link-vizent"
                 >
-                  View Project →
+                  pypi.org/project/vizent →
                 </a>
               </div>
             </div>
 
-            {/* Timeline Item 2 */}
+            {/* Timeline Item 3 - DJ Society */}
             <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
-                  2024
+                  2023
                 </div>
                 <h3 className="text-2xl font-mono text-slate-200 font-bold">
-                  Personal Site
+                  President, King's College London DJ Society
                 </h3>
                 <p className="text-sm font-mono text-slate-300 leading-relaxed">
-                  A minimalist portfolio with ASCII fluid simulation background. Features custom particle physics and interactive water effects.
+                  Led 800+ members. Organized events for 1,000+ attendees. Raised £4,000+ for charity.
+                </p>
+                <a 
+                  href="https://instagram.com/kaciibedi" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
+                  data-testid="link-djsociety"
+                >
+                  Instagram →
+                </a>
+              </div>
+            </div>
+
+            {/* Timeline Item 4 - Digital Content */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  2025
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Digital Content & Science Communication
+                </h3>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  Produced educational content on physics, AI, and growth. 2 million+ views in one month across Instagram and TikTok. 4,000+ organic followers.
+                </p>
+                <a 
+                  href="https://youtube.com/@ytkaci" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
+                  data-testid="link-content"
+                >
+                  Watch →
+                </a>
+              </div>
+            </div>
+
+            {/* Timeline Item 5 - Rota System */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  2025
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Full-Stack Rota System Developer
+                </h3>
+                <h4 className="text-sm font-mono text-slate-300">
+                  King's Disability Department
+                </h4>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  Built automated shift management system using Power Apps, SharePoint, and Power Automate. Secured university grant funding. Delivered GDPR-compliant solution eliminating manual scheduling.
                 </p>
               </div>
             </div>
 
-            {/* Timeline Item 3 - Placeholder */}
+            {/* Timeline Item 6 - Clarius Living */}
             <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
-                  Coming Soon
+                  2025
                 </div>
                 <h3 className="text-2xl font-mono text-slate-200 font-bold">
-                  Future Project
+                  Clarius Living
                 </h3>
                 <p className="text-sm font-mono text-slate-300 leading-relaxed">
-                  More exciting projects on the way. Stay tuned for updates.
+                  Directed social media creative and brand identity. Led 3D product design and rendering for complete catalog.
                 </p>
+                <a 
+                  href="https://clariusliving.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
+                  data-testid="link-clarius"
+                >
+                  clariusliving.com →
+                </a>
+              </div>
+            </div>
+
+            {/* Timeline Item 7 - Naked & Saucy */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  2025
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Naked & Saucy
+                </h3>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  Developing creative strategy and content direction. Building long-term brand presence through visual storytelling.
+                </p>
+                <a 
+                  href="https://nakedandsaucy.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
+                  data-testid="link-nakedandsaucy"
+                >
+                  nakedandsaucy.com →
+                </a>
               </div>
             </div>
 
