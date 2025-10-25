@@ -324,25 +324,25 @@ export default function Home() {
       />
       
       {/* Main Content */}
-      <div className={`relative z-10 flex flex-col items-center justify-center min-h-screen transition-all duration-1000 ${showPortfolio ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
+      <div className={`relative z-10 flex flex-col items-center justify-center min-h-screen px-4 transition-all duration-1000 ${showPortfolio ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
         {/* Header Text */}
-        <div className="text-center space-y-8 mb-16">
-          <p className="text-xs font-mono text-slate-400 uppercase tracking-wider mb-8">
+        <div className="text-center space-y-4 sm:space-y-6 md:space-y-8 mb-8 sm:mb-12 md:mb-16">
+          <p className="text-xs font-mono text-slate-400 uppercase tracking-wider mb-4 sm:mb-6 md:mb-8">
             This site was made by
           </p>
-          <h1 className="text-4xl font-mono text-slate-200 font-bold tracking-wide">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-mono text-slate-200 font-bold tracking-wide">
             Kaci Bedi
           </h1>
-          <blockquote className="max-w-2xl mx-auto text-center">
-            <p className="text-base font-mono text-slate-300 leading-relaxed">
+          <blockquote className="max-w-2xl mx-auto text-center px-4">
+            <p className="text-sm sm:text-base font-mono text-slate-300 leading-relaxed">
               "You are not a drop in the ocean. You are the entire ocean in a drop."
             </p>
-            <cite className="block mt-3 text-sm font-mono text-slate-400">— Rumi</cite>
+            <cite className="block mt-2 sm:mt-3 text-xs sm:text-sm font-mono text-slate-400">— Rumi</cite>
           </blockquote>
         </div>
         
         {/* Social Links */}
-        <div className="flex space-x-16 px-8">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 md:gap-16 w-full max-w-md sm:max-w-none px-4 sm:px-8">
           {/* Instagram Button */}
           <button
             data-testid="button-instagram"
@@ -352,7 +352,7 @@ export default function Home() {
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform"
+                       active:scale-95 active:bg-slate-600/70 transform w-full sm:w-auto text-center"
           >
             <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               instagram
@@ -368,7 +368,7 @@ export default function Home() {
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform"
+                       active:scale-95 active:bg-slate-600/70 transform w-full sm:w-auto text-center"
           >
             <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               portfolio
@@ -384,7 +384,7 @@ export default function Home() {
             className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
                        hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
                        focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform"
+                       active:scale-95 active:bg-slate-600/70 transform w-full sm:w-auto text-center"
           >
             <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
               youtube
