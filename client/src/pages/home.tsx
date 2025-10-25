@@ -11,6 +11,7 @@ interface WaterParticle {
 }
 
 export default function Home() {
+  const [showPortfolio, setShowPortfolio] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const hoveredButtonRef = useRef<{ x: number; y: number } | null>(null);
@@ -289,6 +290,31 @@ export default function Home() {
     }, 150);
   };
 
+  const handlePortfolioClick = (event: React.MouseEvent) => {
+    // Get button position for ripple effect
+    const rect = event.currentTarget.getBoundingClientRect();
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const buttonCenterX = rect.left + rect.width / 2 - canvasRect.left;
+      const buttonCenterY = rect.top + rect.height / 2 - canvasRect.top;
+      
+      // Trigger ripple effect in water
+      rippleRef.current = {
+        active: true,
+        x: buttonCenterX,
+        y: buttonCenterY,
+        intensity: 8,
+        time: 0
+      };
+    }
+    
+    // Show portfolio after short delay
+    setTimeout(() => {
+      setShowPortfolio(true);
+    }, 150);
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-900 font-mono">
       {/* ASCII Fluid Canvas Background */}
@@ -298,7 +324,7 @@ export default function Home() {
       />
       
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen">
+      <div className={`relative z-10 flex flex-col items-center justify-center min-h-screen transition-all duration-1000 ${showPortfolio ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
         {/* Header Text */}
         <div className="text-center space-y-8 mb-16">
           <p className="text-xs font-mono text-slate-400 uppercase tracking-wider mb-8">
@@ -319,6 +345,7 @@ export default function Home() {
         <div className="flex space-x-16 px-8">
           {/* Instagram Button */}
           <button
+            data-testid="button-instagram"
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://instagram.com/kaciibedi', e)}
@@ -332,8 +359,25 @@ export default function Home() {
             </span>
           </button>
 
+          {/* Portfolio Button */}
+          <button
+            data-testid="button-portfolio"
+            onMouseEnter={(e) => handleButtonHover(true, e)}
+            onMouseLeave={() => handleButtonHover(false)}
+            onClick={handlePortfolioClick}
+            className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
+                       hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
+                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                       active:scale-95 active:bg-slate-600/70 transform"
+          >
+            <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
+              portfolio
+            </span>
+          </button>
+
           {/* YouTube Button */}
           <button
+            data-testid="button-youtube"
             onMouseEnter={(e) => handleButtonHover(true, e)}
             onMouseLeave={() => handleButtonHover(false)}
             onClick={(e) => handleButtonClickWithRipple('https://youtube.com/@ytkaci', e)}
@@ -346,23 +390,91 @@ export default function Home() {
               youtube
             </span>
           </button>
-
-          {/* Mind Mapper Button */}
-          <button
-            onMouseEnter={(e) => handleButtonHover(true, e)}
-            onMouseLeave={() => handleButtonHover(false)}
-            onClick={(e) => handleButtonClickWithRipple('https://mind-mapper.replit.app', e)}
-            className="group relative px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
-                       hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
-                       focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
-                       active:scale-95 active:bg-slate-600/70 transform"
-          >
-            <span className="text-sm font-mono text-slate-300 group-hover:text-cyan-200 transition-colors duration-300">
-              mind mapper
-            </span>
-          </button>
         </div>
       </div>
+
+      {/* Portfolio Timeline View */}
+      {showPortfolio && (
+        <div className="fixed inset-0 z-20 flex items-center justify-start overflow-x-auto overflow-y-hidden snap-x snap-mandatory"
+             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <style>{`
+            .portfolio-timeline::-webkit-scrollbar {
+              display: none;
+            }
+          `}</style>
+          
+          <div className="flex space-x-32 px-16 py-8 min-w-full portfolio-timeline animate-fadeIn">
+            {/* Timeline Item 1 */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  2024
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Mind Mapper
+                </h3>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  An interactive mind mapping application built with React and TypeScript. Features real-time collaboration and intuitive node-based interface.
+                </p>
+                <a 
+                  href="https://mind-mapper.replit.app" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block text-xs font-mono text-cyan-400 hover:text-cyan-300 underline"
+                  data-testid="link-mindmapper"
+                >
+                  View Project →
+                </a>
+              </div>
+            </div>
+
+            {/* Timeline Item 2 */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  2024
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Personal Site
+                </h3>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  A minimalist portfolio with ASCII fluid simulation background. Features custom particle physics and interactive water effects.
+                </p>
+              </div>
+            </div>
+
+            {/* Timeline Item 3 - Placeholder */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <div className="space-y-4">
+                <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
+                  Coming Soon
+                </div>
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  Future Project
+                </h3>
+                <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                  More exciting projects on the way. Stay tuned for updates.
+                </p>
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+              <button
+                onClick={() => setShowPortfolio(false)}
+                className="px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
+                           hover:bg-slate-700/60 hover:border-slate-500/70 transition-all duration-300
+                           focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400"
+                data-testid="button-close-portfolio"
+              >
+                <span className="text-sm font-mono text-slate-300 hover:text-cyan-200">
+                  ← Back to Home
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
