@@ -403,9 +403,9 @@ export default function Home() {
             }
           `}</style>
           
-          <div className="flex space-x-32 px-16 py-8 min-w-full portfolio-timeline animate-fadeIn">
+          <div className="flex space-x-8 sm:space-x-16 md:space-x-32 px-4 sm:px-8 md:px-16 py-8 min-w-full portfolio-timeline animate-fadeIn">
             {/* Timeline Item 1 - BSc Physics */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2021–2025
@@ -423,7 +423,7 @@ export default function Home() {
             </div>
 
             {/* Timeline Item 2 - Vizent */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2023
@@ -447,7 +447,7 @@ export default function Home() {
             </div>
 
             {/* Timeline Item 3 - DJ Society */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2023
@@ -471,7 +471,7 @@ export default function Home() {
             </div>
 
             {/* Timeline Item 4 - Digital Content */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2025
@@ -495,7 +495,7 @@ export default function Home() {
             </div>
 
             {/* Timeline Item 5 - Rota System */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2025
@@ -513,7 +513,7 @@ export default function Home() {
             </div>
 
             {/* Timeline Item 6 - Clarius Living */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2025
@@ -537,7 +537,7 @@ export default function Home() {
             </div>
 
             {/* Timeline Item 7 - Naked & Saucy */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <div className="space-y-4">
                 <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">
                   2025
@@ -560,8 +560,74 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Services Section */}
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
+              <div className="space-y-6">
+                <h3 className="text-2xl font-mono text-slate-200 font-bold">
+                  What can I do for you?
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="text-base font-mono text-cyan-400 font-bold">
+                      Creative Direction
+                    </h4>
+                    <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                      Brand identity, visual strategy, and content creation
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-base font-mono text-cyan-400 font-bold">
+                      Video Production
+                    </h4>
+                    <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                      High-quality video content and post-production
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="text-base font-mono text-cyan-400 font-bold">
+                      Workflow Improvement & AI Implementation
+                    </h4>
+                    <p className="text-sm font-mono text-slate-300 leading-relaxed">
+                      Automation, process optimization, and AI-powered solutions
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-4">
+                  <a 
+                    href="mailto:kabirbedi01@hotmail.com"
+                    className="px-6 py-3 bg-cyan-500/20 border border-cyan-400/50 backdrop-blur-sm
+                               hover:bg-cyan-500/30 hover:border-cyan-400/70 transition-all duration-300
+                               focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                               text-center"
+                    data-testid="button-contact-email"
+                  >
+                    <span className="text-sm font-mono text-cyan-300 hover:text-cyan-200">
+                      Contact via Email →
+                    </span>
+                  </a>
+                  
+                  <a 
+                    href="tel:+17782390812"
+                    className="px-6 py-3 bg-cyan-500/20 border border-cyan-400/50 backdrop-blur-sm
+                               hover:bg-cyan-500/30 hover:border-cyan-400/70 transition-all duration-300
+                               focus:outline-none focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400
+                               text-center"
+                    data-testid="button-contact-phone"
+                  >
+                    <span className="text-sm font-mono text-cyan-300 hover:text-cyan-200">
+                      Call Now: +1 778 239 0812 →
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
             {/* Close Button */}
-            <div className="snap-center shrink-0 w-96 flex flex-col justify-center">
+            <div className="snap-center shrink-0 w-80 sm:w-96 flex flex-col justify-center min-h-[60vh]">
               <button
                 onClick={() => setShowPortfolio(false)}
                 className="px-6 py-3 bg-slate-800/50 border border-slate-600/50 backdrop-blur-sm
